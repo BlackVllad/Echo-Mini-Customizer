@@ -1,10 +1,12 @@
 # Echo Mini Customizer
 
-A PyQt5 desktop application for customizing **Snowsky Echo Mini** (Rockchip RKnano) firmware themes. View, edit, and replace boot animations, menu screens, music player UI, and other firmware resources directly from `.IMG` firmware files.
+This little thing is a piece of shit, if you can help to make it better thanks
+
+A PyQt5 desktop application for customizing **Snowsky Echo Mini** firmware themes. View, edit, and replace boot animations, menu screens, music player UI, and other firmware resources directly from `.IMG` firmware files.
 
 ## Features
 
-- **Theme Preview** — Browse all 5 built-in themes (Elegant White, Midnight Black, Cherry Blossom, Retro Gold, Sky Blue) with real-time preview on a simulated device screen
+- **Theme Preview** — View how your themes seems before adding it to your Echo Mini 
 - **Boot/Shutdown/Charging Animations** — Play and replace frame-by-frame boot, shutdown, and charging animations
 - **MP4 Import** — Import video files and automatically distribute frames across animation slots
 - **Image Replacement** — Replace any firmware resource image (menus, icons, backgrounds) with custom PNG/JPG/BMP files
@@ -49,7 +51,7 @@ The `.exe` will be in the `dist/` folder.
 5. **Import Theme** — Click "📥 Import Theme" to import a folder of PNG images as a new theme
 6. **Save** — Click "💾 Save Firmware" or "💾 Save As..." to write changes
 
-## Firmware Patching Details
+## Firmware Patching Details **REALLY IMPORTANT**
 
 The Echo Mini firmware shares boot/charge animations across all themes by default. The built-in patcher modifies the ARM Thumb2 theme dispatch function to:
 
