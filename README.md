@@ -1,5 +1,7 @@
 # Echo Mini Customizer
 
+### [⬇ Download EchoMiniCustomizer.exe](https://github.com/BlackVllad/Echo-Mini-Customizer/releases/latest)
+
 This little thing is a piece of shit, if you can help to make it better thanks
 
 A PyQt5 desktop application for customizing **Snowsky Echo Mini** firmware themes. View, edit, and replace boot animations, menu screens, music player UI, and other firmware resources directly from `.IMG` firmware files.
