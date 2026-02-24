@@ -1380,6 +1380,17 @@ class EchoMiniCustomizer(QMainWindow):
             self.statusBar().showMessage(f"Loading {Path(path).name}...")
             QApplication.processEvents()
             self.firmware = FirmwareParser(path)
+
+            # Auto-patch if not already patched
+            try:
+                info = self.firmware.detect_patch_info()
+                if not info['is_patched']:
+                    self.statusBar().showMessage("Patching firmware for per-theme boots...")
+                    QApplication.processEvents()
+                    self.firmware.patch_for_themed_boots()
+            except Exception:
+                pass  # Skip patching if detection fails
+
             resource_list = self.firmware.get_resource_list()
             self.lbl_status.setText(f" {Path(path).name} — {len(resource_list)} resources")
 
