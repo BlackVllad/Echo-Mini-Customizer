@@ -1,6 +1,9 @@
 # Echo Mini Customizer
 
+Credits to the creator of the flame-ocean-website repository, link "https://github.com/losses/flame-ocean-website#https://github.com/losses/flame-ocean-website#"
+
 ### [⬇ Download EchoMiniCustomizer.exe](https://github.com/BlackVllad/Echo-Mini-Customizer/releases/latest)
+This link is because im idiot and i dont remember where I put the downloader of the .EXE
 
 This little thing is a piece of shit, if you can help to make it better thanks
 
