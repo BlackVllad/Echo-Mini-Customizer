@@ -5,8 +5,6 @@ Credits to the creator of the flame-ocean-website repository, link "https://gith
 ### [⬇ Download EchoMiniCustomizer.exe](https://github.com/BlackVllad/Echo-Mini-Customizer/releases/latest)
 This link is because im idiot and i dont remember where I put the downloader of the .EXE
 
-This little thing is a piece of shit, if you can help to make it better thanks
-
 A PyQt5 desktop application for customizing **Snowsky Echo Mini** firmware themes. View, edit, and replace boot animations, menu screens, music player UI, and other firmware resources directly from `.IMG` firmware files.
 
 ## Features
@@ -55,6 +53,17 @@ The `.exe` will be in the `dist/` folder.
 4. **Patch Firmware** — Click "🔧 Patch Firmware" to enable per-theme boot animations (only needed once per firmware)
 5. **Import Theme** — Click "📥 Import Theme" to import a folder of PNG images as a new theme
 6. **Save** — Click "💾 Save Firmware" or "💾 Save As..." to write changes
+
+## How to Transfer a Theme Between Firmware Files
+
+To apply a theme from one `.IMG` to a different `.IMG`:
+
+1. **Open the source firmware** — Open the `.IMG` that already has the theme you want
+2. **Export the theme** — Click **"📤 Export Themes"**, select the theme you want, and choose a folder to save it
+3. **Open the target firmware** — Open the `.IMG` you want to apply the theme to
+4. **Import the theme** — Click **"📥 Import Theme"**, select the exported folder, choose which theme slot to place it in, and confirm
+
+> The exported folder contains all the PNG images for that theme. You can also edit those images externally before importing them back.
 
 ## Firmware Patching Details **REALLY IMPORTANT**
 

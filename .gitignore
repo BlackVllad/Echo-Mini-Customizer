@@ -10,3 +10,5 @@ dist/
 .venv/
 venv/
 *.egg-info/
+*.bak
+*.CRC32_BACKUP.py

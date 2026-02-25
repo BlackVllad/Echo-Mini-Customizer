@@ -8,9 +8,10 @@ file browser, and other firmware resources with real-time editing.
 import sys
 import os
 import struct
-import array
 from pathlib import Path
 from collections import OrderedDict
+
+import numpy as np
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -562,101 +563,89 @@ class FirmwareParser:
         )
 
     def _fix_integrity(self):
-        """Fix RKnano firmware integrity: header copy + file size + CRC."""
+        """Update fw_end pointer, extend file if needed, and write bootloader header copy.
+
+        NOTE: The Echo Mini does not actively verify the RKnano CRC32 trailer,
+        so CRC recalculation is intentionally skipped to avoid potential issues
+        from incorrect file-size alignment. A backup with CRC logic is kept in
+        echo_mini_customizer.CRC32_BACKUP.py if ever needed.
+        """
         data = self.img_data
         if data[0x1F8:0x200] != b'RKnanoFW':
             return
 
-        fw_end = struct.unpack_from('<I', data, 0x1F4)[0]
+        # ① Preserve the current trailer (last 4 bytes) before any resizing
+        saved_trailer = bytes(data[-4:])
+
+        # ② Recalculate fw_end from actual Part5 end
         ir_off = struct.unpack_from('<I', data, 0x14C)[0]
-        ir_sz = struct.unpack_from('<I', data, 0x150)[0]
+        ir_sz  = struct.unpack_from('<I', data, 0x150)[0]
         p5_end = ir_off + ir_sz
 
+        fw_end = struct.unpack_from('<I', data, 0x1F4)[0]
         if p5_end > fw_end:
             fw_end = ((p5_end + 0xFFFF) // 0x10000) * 0x10000
             struct.pack_into('<I', data, 0x1F4, fw_end)
 
-        ALIGN = 0x100000
+        # ③ Extend the file if fw_end is beyond the current file size.
+        #    This fixes .IMG files that were patched/modified but not properly
+        #    resized — the Echo Mini rejects them because the bootloader tries
+        #    to read the header copy at fw_end and finds nothing valid.
+        ALIGN  = 0x100000
         fw_size = ((fw_end + 16384 + ALIGN) // ALIGN) * ALIGN
-        needed = fw_size + 4
-
+        needed  = fw_size + 4
         if len(data) < needed:
             data.extend(b'\x00' * (needed - len(data)))
         elif len(data) > needed:
             del data[needed:]
 
+        # ④ Copy the 512-byte header to fw_end (bootloader requires it there)
         data[fw_end:fw_end + 0x200] = data[0:0x200]
 
-        CRC_T = [
-            0x00000000,0x04C10DB7,0x09821B6E,0x0D4316D9,
-            0x130436DC,0x17C53B6B,0x1A862DB2,0x1E472005,
-            0x26086DB8,0x22C9600F,0x2F8A76D6,0x2B4B7B61,
-            0x350C5B64,0x31CD56D3,0x3C8E400A,0x384F4DBD,
-            0x4C10DB70,0x48D1D6C7,0x4592C01E,0x4153CDA9,
-            0x5F14EDAC,0x5BD5E01B,0x5696F6C2,0x5257FB75,
-            0x6A18B6C8,0x6ED9BB7F,0x639AADA6,0x675BA011,
-            0x791C8014,0x7DDD8DA3,0x709E9B7A,0x745F96CD,
-            0x9821B6E0,0x9CE0BB57,0x91A3AD8E,0x9562A039,
-            0x8B25803C,0x8FE48D8B,0x82A79B52,0x866696E5,
-            0xBE29DB58,0xBAE8D6EF,0xB7ABC036,0xB36ACD81,
-            0xAD2DED84,0xA9ECE033,0xA4AFF6EA,0xA06EFB5D,
-            0xD4316D90,0xD0F06027,0xDDB376FE,0xD9727B49,
-            0xC7355B4C,0xC3F456FB,0xCEB74022,0xCA764D95,
-            0xF2390028,0xF6F80D9F,0xFBBB1B46,0xFF7A16F1,
-            0xE13D36F4,0xE5FC3B43,0xE8BF2D9A,0xEC7E202D,
-            0x34826077,0x30436DC0,0x3D007B19,0x39C176AE,
-            0x278656AB,0x23475B1C,0x2E044DC5,0x2AC54072,
-            0x128A0DCF,0x164B0078,0x1B0816A1,0x1FC91B16,
-            0x018E3B13,0x054F36A4,0x080C207D,0x0CCD2DCA,
-            0x7892BB07,0x7C53B6B0,0x7110A069,0x75D1ADDE,
-            0x6B968DDB,0x6F57806C,0x621496B5,0x66D59B02,
-            0x5E9AD6BF,0x5A5BDB08,0x5718CDD1,0x53D9C066,
-            0x4D9EE063,0x495FEDD4,0x441CFB0D,0x40DDF6BA,
-            0xACA3D697,0xA862DB20,0xA521CDF9,0xA1E0C04E,
-            0xBFA7E04B,0xBB66EDFC,0xB625FB25,0xB2E4F692,
-            0x8AABBB2F,0x8E6AB698,0x8329A041,0x87E8ADF6,
-            0x99AF8DF3,0x9D6E8044,0x902D969D,0x94EC9B2A,
-            0xE0B30DE7,0xE4720050,0xE9311689,0xEDF01B3E,
-            0xF3B73B3B,0xF776368C,0xFA352055,0xFEF42DE2,
-            0xC6BB605F,0xC27A6DE8,0xCF397B31,0xCBF87686,
-            0xD5BF5683,0xD17E5B34,0xDC3D4DED,0xD8FC405A,
-            0x6904C0EE,0x6DC5CD59,0x6086DB80,0x6447D637,
-            0x7A00F632,0x7EC1FB85,0x7382ED5C,0x7743E0EB,
-            0x4F0CAD56,0x4BCDA0E1,0x468EB638,0x424FBB8F,
-            0x5C089B8A,0x58C9963D,0x558A80E4,0x514B8D53,
-            0x25141B9E,0x21D51629,0x2C9600F0,0x28570D47,
-            0x36102D42,0x32D120F5,0x3F92362C,0x3B533B9B,
-            0x031C7626,0x07DD7B91,0x0A9E6D48,0x0E5F60FF,
-            0x101840FA,0x14D94D4D,0x199A5B94,0x1D5B5623,
-            0xF125760E,0xF5E47BB9,0xF8A76D60,0xFC6660D7,
-            0xE22140D2,0xE6E04D65,0xEBA35BBC,0xEF62560B,
-            0xD72D1BB6,0xD3EC1601,0xDEAF00D8,0xDA6E0D6F,
-            0xC4292D6A,0xC0E820DD,0xCDAB3604,0xC96A3BB3,
-            0xBD35AD7E,0xB9F4A0C9,0xB4B7B610,0xB076BBA7,
-            0xAE319BA2,0xAAF09615,0xA7B380CC,0xA3728D7B,
-            0x9B3DC0C6,0x9FFCCD71,0x92BFDBA8,0x967ED61F,
-            0x8839F61A,0x8CF8FBAD,0x81BBED74,0x857AE0C3,
-            0x5D86A099,0x5947AD2E,0x5404BBF7,0x50C5B640,
-            0x4E829645,0x4A439BF2,0x47008D2B,0x43C1809C,
-            0x7B8ECD21,0x7F4FC096,0x720CD64F,0x76CDDBF8,
-            0x688AFBFD,0x6C4BF64A,0x6108E093,0x65C9ED24,
-            0x11967BE9,0x1557765E,0x18146087,0x1CD56D30,
-            0x02924D35,0x06534082,0x0B10565B,0x0FD15BEC,
-            0x379E1651,0x335F1BE6,0x3E1C0D3F,0x3ADD0088,
-            0x249A208D,0x205B2D3A,0x2D183BE3,0x29D93654,
-            0xC5A71679,0xC1661BCE,0xCC250D17,0xC8E400A0,
-            0xD6A320A5,0xD2622D12,0xDF213BCB,0xDBE0367C,
-            0xE3AF7BC1,0xE76E7676,0xEA2D60AF,0xEEEC6D18,
-            0xF0AB4D1D,0xF46A40AA,0xF9295673,0xFDE85BC4,
-            0x89B7CD09,0x8D76C0BE,0x8035D667,0x84F4DBD0,
-            0x9AB3FBD5,0x9E72F662,0x9331E0BB,0x97F0ED0C,
-            0xAFBFA0B1,0xAB7EAD06,0xA63DBBDF,0xA2FCB668,
-            0xBCBB966D,0xB87A9BDA,0xB5398D03,0xB1F880B4,
-        ]
-        acc = 0
-        for b in bytes(data[:fw_size]):
-            acc = ((acc << 8) & 0xFFFFFFFF) ^ CRC_T[(acc >> 24) ^ b]
-        struct.pack_into('<I', data, len(data) - 4, acc)
+        # ⑤ Restore the trailer at the very end of the file
+        data[-4:] = saved_trailer
+
+    def fix_corrupt_firmware(self) -> str:
+        """
+        Repair an .IMG that the Echo Mini rejects (detects update then cancels it).
+
+        Use this when:
+          - The device detects the update file but cancels it after 1-3 seconds
+          - The .IMG was patched or modified but fw_end points beyond the file
+          - The trailer bytes are corrupt (e.g. c618c618 instead of a valid value)
+
+        Corrections applied:
+          1. Recalculates fw_end from the actual Part5 end
+          2. Extends the file to the size required to contain fw_end
+          3. Writes the 512-byte header copy at fw_end (bootloader requires it)
+          4. Preserves the original trailer bytes (device does not verify CRC32)
+        """
+        data = self.img_data
+        if data[0x1F8:0x200] != b'RKnanoFW':
+            raise ValueError("Not a valid RKnano firmware (missing RKnanoFW magic).")
+
+        old_size   = len(data)
+        old_fw_end = struct.unpack_from('<I', data, 0x1F4)[0]
+        old_trailer = bytes(data[-4:])
+
+        # Run the full integrity fix (extend + header copy + restore trailer)
+        self._fix_integrity()
+
+        new_size   = len(data)
+        new_fw_end = struct.unpack_from('<I', data, 0x1F4)[0]
+        new_trailer = bytes(data[-4:])
+
+        header_copy_ok = (data[new_fw_end:new_fw_end + 0x200] == data[0:0x200])
+
+        return (
+            f"✅ Firmware integrity fixed\n\n"
+            f"• fw_end  : 0x{old_fw_end:X} → 0x{new_fw_end:X}\n"
+            f"• Size    : {old_size:,} → {new_size:,} bytes "
+            f"({(new_size - old_size) // 1024:+,} KB)\n"
+            f"• Header copy at fw_end: {'✓' if header_copy_ok else '✗'}\n"
+            f"• Trailer : {old_trailer.hex()} → {new_trailer.hex()}\n\n"
+            f"Use 'Save As' to write the fixed firmware to a new file."
+        )
 
 
 def swap_bytes_16bit(data):
@@ -668,48 +657,43 @@ def swap_bytes_16bit(data):
 
 
 def rgb565_to_qimage(raw, w, h):
-    """Fast RGB565 to QImage conversion using array operations."""
+    """Fast RGB565 to QImage conversion using numpy."""
     n = w * h
     raw_bytes = raw[:n * 2]
     if len(raw_bytes) < n * 2:
         raw_bytes = raw_bytes + b'\x00' * (n * 2 - len(raw_bytes))
 
-    # Byte-swap and unpack as 16-bit LE words
-    swapped = bytearray(raw_bytes)
-    swapped[0::2], swapped[1::2] = swapped[1::2], swapped[0::2]
-    pixels = array.array('H')
-    pixels.frombytes(bytes(swapped))
+    # Read as big-endian uint16 (equivalent to byte-swapping LE pairs)
+    pixels = np.frombuffer(raw_bytes, dtype='>u2').astype(np.uint16)
 
-    # Build RGBA buffer
-    rgba = bytearray(n * 4)
-    for i in range(n):
-        p = pixels[i]
-        rgba[i * 4]     = ((p >> 11) & 0x1F) * 255 // 31  # R
-        rgba[i * 4 + 1] = ((p >> 5) & 0x3F) * 255 // 63   # G
-        rgba[i * 4 + 2] = (p & 0x1F) * 255 // 31          # B
-        rgba[i * 4 + 3] = 255                              # A
+    # Extract R5G6B5 components and scale to 8-bit
+    rgba = np.empty((n, 4), dtype=np.uint8)
+    rgba[:, 0] = ((pixels >> 11) & 0x1F) * 255 // 31  # R
+    rgba[:, 1] = ((pixels >> 5)  & 0x3F) * 255 // 63  # G
+    rgba[:, 2] = ( pixels        & 0x1F) * 255 // 31  # B
+    rgba[:, 3] = 255                                   # A
 
-    img = QImage(bytes(rgba), w, h, w * 4, QImage.Format_RGBA8888)
-    return img.copy()  # Detach from buffer
+    img = QImage(rgba.tobytes(), w, h, w * 4, QImage.Format_RGBA8888)
+    return img.copy()
 
 
 def qimage_to_rgb565(qimg, w, h):
-    """Fast QImage to RGB565 conversion."""
+    """Fast QImage to RGB565 conversion using numpy."""
     qimg = qimg.convertToFormat(QImage.Format_RGBA8888)
     ptr = qimg.bits()
     ptr.setsize(w * h * 4)
-    rgba = bytes(ptr)
+    rgba = np.frombuffer(bytes(ptr), dtype=np.uint8).reshape(w * h, 4)
 
-    data = bytearray(w * h * 2)
-    for i in range(w * h):
-        r = rgba[i * 4]
-        g = rgba[i * 4 + 1]
-        b = rgba[i * 4 + 2]
-        pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
-        # Big-endian storage (byte-swapped format in firmware)
-        data[i * 2] = (pixel >> 8) & 0xFF
-        data[i * 2 + 1] = pixel & 0xFF
-    return bytes(data)
+    r = rgba[:, 0].astype(np.uint16)
+    g = rgba[:, 1].astype(np.uint16)
+    b = rgba[:, 2].astype(np.uint16)
+
+    pixel = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+    # Big-endian storage (byte-swapped format in firmware)
+    data = np.empty(w * h * 2, dtype=np.uint8)
+    data[0::2] = (pixel >> 8).astype(np.uint8)
+    data[1::2] = (pixel & 0xFF).astype(np.uint8)
+    return data.tobytes()
 
 
 # ============================================================================
@@ -1203,8 +1187,8 @@ THEMES = {
     "A": ("Elegant White",   ""),
     "B": ("Midnight Black",  "B"),
     "C": ("Cherry Blossom",  "C_"),
-    "D": ("Retro Gold",      "D_"),
-    "E": ("Sky Blue",        "E_"),
+    "D": ("Sky Blue",        "D_"),
+    "E": ("Retro Gold",      "E_"),
     "F": ("Theme F",         "F_"),
     "G": ("Theme G",         "G_"),
     "H": ("Theme H",         "H_"),
@@ -1221,6 +1205,29 @@ THEMES = {
     "S": ("Theme S",         "S_"),
     "T": ("Theme T",         "T_"),
 }
+
+# ---------------------------------------------------------------------------
+# PROTECTED_THEME_KEYS — prefijos de tema que JAMÁS deben tocarse
+# ---------------------------------------------------------------------------
+# El prefijo "P_" está reservado en la tabla THEMES como "Theme P", pero en el
+# firmware real del Echo Mini NO existe un Tema P.  Los únicos recursos que
+# empiezan con "P_" son:
+#
+#   P_GREENC0_(0.0).BMP  … P_GREENC9_(0.0).BMP   (índices 351–360)
+#
+# Estos 10 archivos son los dígitos (0-9) del contador verde del reproductor
+# de música en el Tema A (ej. el tiempo transcurrido "01:23").  Su nombre
+# empieza con "P_" por razones internas del fabricante (posiblemente
+# "Player Green Counter"), NO porque pertenezcan a un slot de tema distinto.
+#
+# Si se sobreescribieran:
+#   • Los números del reproductor se verían corruptos o en blanco.
+#   • No se añadiría ningún "Tema P" real — el firmware no tiene ese bloque.
+#
+# Para agregar más prefijos protegidos en el futuro, simplemente añádelos
+# al frozenset: frozenset({"P", "X", ...})
+# ---------------------------------------------------------------------------
+PROTECTED_THEME_KEYS: frozenset = frozenset({"P"})
 
 # Base resource categories that are duplicated across themes
 THEMED_CATEGORIES = ("MAINMENUPAGE", "MUSIC_", "BROWSER_", "USB_", "FM_", "RECORDER_")
@@ -1260,7 +1267,7 @@ class EchoMiniCustomizer(QMainWindow):
         self.active_themes = {}  # populated after firmware load
 
         self._build_ui()
-        self._auto_load()
+        QTimer.singleShot(0, self._auto_load)
 
     def _build_ui(self):
         # Toolbar
@@ -1280,7 +1287,7 @@ class EchoMiniCustomizer(QMainWindow):
         act_saveas.triggered.connect(self._save_as)
         toolbar.addAction(act_saveas)
 
-        act_export = QAction("📤 Export Images", self)
+        act_export = QAction("📤 Export Themes", self)
         act_export.triggered.connect(self._export_images)
         toolbar.addAction(act_export)
 
@@ -1291,6 +1298,10 @@ class EchoMiniCustomizer(QMainWindow):
         act_patch = QAction("🔧 Patch Firmware", self)
         act_patch.triggered.connect(self._patch_firmware)
         toolbar.addAction(act_patch)
+
+        act_fix = QAction("🛠 Fix IMG", self)
+        act_fix.triggered.connect(self._fix_firmware)
+        toolbar.addAction(act_fix)
 
         toolbar.addSeparator()
 
@@ -1409,15 +1420,10 @@ class EchoMiniCustomizer(QMainWindow):
                 self.resources_by_name[res['name']] = (res, img)
 
             self._detect_active_themes()
-            # Sync firmware theme names → THEMES dict display names
-            if self.firmware.theme_names:
-                theme_keys = list(THEMES.keys())
-                for i, name in enumerate(self.firmware.theme_names):
-                    if i < len(theme_keys):
-                        key = theme_keys[i]
-                        THEMES[key] = (name, THEMES[key][1])
-                        if key in self.active_themes:
-                            self.active_themes[key] = THEMES[key]
+            # Populate active_themes from THEMES dict (not from firmware string table,
+            # since the stock firmware ships with D/E names swapped vs resource prefixes)
+            for key in list(self.active_themes.keys()):
+                self.active_themes[key] = THEMES[key]
             self._refresh_theme_combo()
             self._populate_panels()
             self.statusBar().showMessage(
@@ -1442,7 +1448,7 @@ class EchoMiniCustomizer(QMainWindow):
             if res['index'] < 67:
                 continue
             for key, (tname, prefix) in THEMES.items():
-                if key == "A":
+                if key == "A" or key in PROTECTED_THEME_KEYS:
                     continue
                 if prefix and name.startswith(prefix):
                     counts[key] = counts.get(key, 0) + 1
@@ -1451,7 +1457,13 @@ class EchoMiniCustomizer(QMainWindow):
                 counts["A"] = counts.get("A", 0) + 1
 
         for key, count in counts.items():
-            if count > 0:
+            # Nunca activar un tema protegido. "P" no es un tema real; sus
+            # recursos (P_GREENC0-9) son dígitos internos del Tema A.
+            if key in PROTECTED_THEME_KEYS:
+                continue
+            # Exigir mínimo 50 recursos para evitar falsos positivos:
+            # los 10 P_GREENC pasarían el filtro de prefijo pero no son un tema.
+            if count >= 50:
                 self.active_themes[key] = THEMES[key]
 
     def _refresh_theme_combo(self):
@@ -1463,15 +1475,8 @@ class EchoMiniCustomizer(QMainWindow):
         for key in theme_keys:
             if key not in self.active_themes:
                 continue
-            tidx = theme_keys.index(key)
-            # Use firmware name if available, else THEMES dict name
-            if self.firmware and tidx < len(self.firmware.theme_names):
-                fw_name = self.firmware.theme_names[tidx]
-            else:
-                fw_name = None
             dict_name, prefix = self.active_themes[key]
-            display_name = fw_name if fw_name else dict_name
-            label = f"{key} – {display_name}" + (f"  (prefix: {prefix})" if prefix else "  (no prefix)")
+            label = f"{key} – {dict_name}" + (f"  (prefix: {prefix})" if prefix else "  (no prefix)")
             self.theme_combo.addItem(label, key)
         self.theme_combo.blockSignals(False)
         # Reset to first theme
@@ -1739,6 +1744,21 @@ class EchoMiniCustomizer(QMainWindow):
 
     def replace_resource(self, res, callback=None):
         """Open file dialog to replace a firmware resource image."""
+        # Bloquear sobreescritura de recursos protegidos.
+        # Los prefijos en PROTECTED_THEME_KEYS no son temas reales; por ejemplo
+        # P_GREENC0-9 son los dígitos del contador del reproductor (Tema A).
+        # Sobreescribirlos corrompería la UI sin añadir ningún tema nuevo.
+        for key in PROTECTED_THEME_KEYS:
+            pfx = THEMES[key][1]
+            if pfx and res['name'].startswith(pfx):
+                QMessageBox.warning(
+                    self, "Protected Resource",
+                    f"'{res['name']}' is a protected system resource (Theme {key}) "
+                    f"and cannot be overwritten.\n\n"
+                    f"These are internal UI digits used by the firmware."
+                )
+                return
+
         path, _ = QFileDialog.getOpenFileName(
             self, f"Replace: {res['name']}",
             str(get_app_dir()),
@@ -1792,7 +1812,7 @@ class EchoMiniCustomizer(QMainWindow):
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("Export Images")
+        dlg.setWindowTitle("Export Themes")
         dlg.setMinimumWidth(350)
         layout = QVBoxLayout(dlg)
 
@@ -2230,6 +2250,54 @@ class EchoMiniCustomizer(QMainWindow):
             QMessageBox.information(self, "Patch Complete", result)
         except Exception as e:
             QMessageBox.critical(self, "Patch Error", f"Failed to patch firmware:\n{e}")
+
+    def _fix_firmware(self):
+        """Fix a broken .IMG that the Echo Mini rejects after detecting the update."""
+        if not self.firmware:
+            QMessageBox.warning(self, "No Firmware", "First load a firmware .IMG file.")
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("🛠 Fix IMG Integrity")
+        dlg.setMinimumWidth(460)
+        lay = QVBoxLayout(dlg)
+
+        lay.addWidget(QLabel("<b>Use this when the Echo Mini detects the update but cancels it.</b>"))
+        lay.addWidget(QLabel(""))
+        lay.addWidget(QLabel("Corrections applied:"))
+        lay.addWidget(QLabel("  • Recalculates fw_end from actual Part5 end"))
+        lay.addWidget(QLabel("  • Extends the file so fw_end is inside it"))
+        lay.addWidget(QLabel("  • Writes the header copy at fw_end (bootloader requires it)"))
+        lay.addWidget(QLabel("  • Preserves the trailer bytes (CRC is not verified by device)"))
+        lay.addWidget(QLabel(""))
+
+        data = self.firmware.img_data
+        fw_end = struct.unpack_from('<I', data, 0x1F4)[0]
+        trailer = bytes(data[-4:]).hex()
+        inside  = fw_end + 0x200 <= len(data)
+        lay.addWidget(QLabel(f"Current fw_end : 0x{fw_end:X}  ({'inside file ✓' if inside else 'OUTSIDE FILE ✗'})"))
+        lay.addWidget(QLabel(f"Current trailer: {trailer}"))
+        lay.addWidget(QLabel(f"File size      : {len(data):,} bytes"))
+        lay.addWidget(QLabel(""))
+        lay.addWidget(QLabel("⚠ This modifies the firmware in memory.\n"
+                             "Use 'Save As' to write the fixed firmware to a new file."))
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        lay.addWidget(buttons)
+
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        try:
+            self.statusBar().showMessage("Fixing firmware integrity...")
+            QApplication.processEvents()
+            result = self.firmware.fix_corrupt_firmware()
+            self._load_firmware(str(self.firmware.img_path))
+            QMessageBox.information(self, "Fix Complete", result)
+        except Exception as e:
+            QMessageBox.critical(self, "Fix Error", f"Failed to fix firmware:\n{e}")
 
     def _save_firmware(self):
         if not self.firmware:
