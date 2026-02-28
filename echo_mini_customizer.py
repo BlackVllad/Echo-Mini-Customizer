@@ -241,15 +241,19 @@ class FirmwareParser:
         """Return list of extractable resource dicts with resolved dimensions."""
         part5 = self.get_part5()
         resources = []
-        end = len(self.entries) - (1 if self.misalignment > 0 else 0)
 
-        for i in range(end):
+        for i in range(len(self.entries)):
             e = self.entries[i]
             if self.misalignment > 0:
                 ti = i + self.misalignment
                 if ti >= len(self.entries):
-                    continue
-                offset = self.entries[ti]['offset']
+                    # Last entry(ies): metadata table exhausted, read offset from R26 directly
+                    eo = self.rock26_start_in_part5 + i * 16
+                    if eo + 16 > len(part5):
+                        continue
+                    offset = struct.unpack('<I', part5[eo + 12:eo + 16])[0]
+                else:
+                    offset = self.entries[ti]['offset']
             elif self.misalignment < 0:
                 ti = i + self.misalignment
                 if ti < 0:
