@@ -43,7 +43,7 @@ pip install pyinstaller
 pyinstaller --onefile --name EchoMiniCustomizer echo_mini_customizer.py
 ```
 
-The `.exe` will be in the `dist/` folder.
+The compiled `EchoMiniCustomizer.exe` is also available at the repo root for direct download.
 
 ## Usage
 
