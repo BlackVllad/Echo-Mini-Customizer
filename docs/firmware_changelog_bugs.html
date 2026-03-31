@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Echo Mini — Changelog & Bug Analysis · HIFIC Firmware</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#0d1117; color:#c9d1d9; font-family:'Courier New',monospace; font-size:12px; padding:24px; }
+h1 { color:#58a6ff; font-size:20px; margin-bottom:4px; }
+h2 { color:#79c0ff; font-size:15px; margin:32px 0 10px; border-bottom:1px solid #30363d; padding-bottom:6px; }
+h3 { color:#a5d6ff; font-size:12px; margin:12px 0 6px; }
+.subtitle { color:#8b949e; font-size:11px; margin-bottom:28px; }
+
+/* ── Timeline bar ── */
+.timeline { display:flex; width:100%; height:42px; border-radius:6px; overflow:hidden; margin:10px 0 4px; border:1px solid #30363d; }
+.tl-seg { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; cursor:default; transition:filter 0.15s; }
+.tl-seg:hover { filter:brightness(1.3); }
+.tl-v1 { background:#1f6feb; color:#fff; }
+.tl-v2 { background:#388bfd; color:#000; }
+.tl-v3 { background:#1a7f37; color:#fff; }
+.tl-labels { display:flex; width:100%; margin-bottom:14px; }
+.tl-label { font-size:9px; color:#8b949e; flex:1; text-align:center; }
+
+/* ── Key metrics table ── */
+table { width:100%; max-width:1100px; border-collapse:collapse; margin:8px 0; }
+th { background:#21262d; color:#79c0ff; padding:5px 8px; text-align:center; font-size:11px; border:1px solid #30363d; white-space:nowrap; }
+td { padding:4px 8px; font-size:11px; border:1px solid #21262d; text-align:center; }
+tr:nth-child(even) td { background:#0d1117; }
+tr:nth-child(odd)  td { background:#161b22; }
+.v1-row td { border-left:3px solid #1f6feb; }
+.v2-row td { border-left:3px solid #388bfd; }
+.v3-row td { border-left:3px solid #1a7f37; }
+.td-name { color:#79c0ff; text-align:left; font-weight:bold; }
+.td-date { color:#8b949e; }
+.td-changed { background:#161f10 !important; color:#7ee787; font-weight:bold; }
+.td-bug { background:#2d0e0e !important; color:#f85149; font-weight:bold; }
+.td-maj { background:#1f1a05 !important; color:#ffa657; font-weight:bold; }
+.td-num { color:#d2a679; }
+.td-ok  { color:#7ee787; }
+
+/* ── Bug cards ── */
+.bug-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; max-width:1100px; margin:10px 0; }
+.bug-card { background:#161b22; border-radius:8px; overflow:hidden; border:1px solid #30363d; }
+.bug-header { padding:8px 14px; display:flex; align-items:center; gap:10px; }
+.bug-id { font-weight:bold; font-size:11px; }
+.bug-title { font-size:12px; font-weight:bold; flex:1; }
+.bug-body { padding:10px 14px; font-size:11px; line-height:1.6; }
+.bug-body p { color:#8b949e; margin:2px 0; }
+.bug-body strong { color:#c9d1d9; }
+.sev-crit { background:#3d1010; border-color:#f85149; }
+.sev-high { background:#2d1a05; border-color:#ffa657; }
+.sev-med  { background:#16200d; border-color:#7ee787; }
+.sev-info { background:#0d1930; border-color:#388bfd; }
+.sev-crit .bug-id { color:#f85149; }
+.sev-high .bug-id { color:#ffa657; }
+.sev-med  .bug-id { color:#7ee787; }
+.sev-info .bug-id { color:#79c0ff; }
+.badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:9px; font-weight:bold; margin:1px; }
+.b-fixed  { background:#1a7f37; color:#fff; }
+.b-open   { background:#f85149; color:#fff; }
+.b-design { background:#8957e5; color:#fff; }
+.b-quirk  { background:#d29922; color:#000; }
+.b-ours   { background:#388bfd; color:#fff; }
+.b-v { background:#21262d; color:#79c0ff; border:1px solid #30363d; }
+
+/* ── Propagation matrix ── */
+.matrix { max-width:1100px; overflow-x:auto; margin:8px 0; }
+.mx-table { border-collapse:collapse; white-space:nowrap; }
+.mx-table th { background:#21262d; color:#8b949e; padding:4px 6px; font-size:10px; border:1px solid #30363d; }
+.mx-table td { padding:3px 5px; font-size:10px; border:1px solid #21262d; text-align:center; width:52px; }
+.mx-label { text-align:left !important; color:#79c0ff; font-weight:bold; width:140px !important; background:#161b22; }
+.mx-present { background:#2d0e0e; color:#f85149; }
+.mx-fixed   { background:#0d1f0d; color:#3fb950; }
+.mx-na      { background:#0d1117; color:#30363d; }
+.mx-partial { background:#1f1a05; color:#ffa657; }
+
+/* ── Changelog cards ── */
+.changelog { max-width:1100px; display:flex; flex-direction:column; gap:2px; }
+.cl-row { display:grid; grid-template-columns:110px 80px 60px 1fr; align-items:start; border-bottom:1px solid #21262d; padding:6px 0; }
+.cl-ver  { font-weight:bold; }
+.cl-v1 .cl-ver { color:#79c0ff; }
+.cl-v2 .cl-ver { color:#58a6ff; }
+.cl-v3 .cl-ver { color:#3fb950; }
+.cl-date { color:#8b949e; font-size:10px; }
+.cl-type { font-size:9px; padding:1px 6px; border-radius:8px; display:inline-block; margin-top:2px; }
+.cl-feat { background:#1a7f37; color:#fff; }
+.cl-fix  { background:#0d419d; color:#fff; }
+.cl-arch { background:#8957e5; color:#fff; }
+.cl-rsrc { background:#d29922; color:#000; }
+.cl-body { color:#c9d1d9; font-size:11px; line-height:1.55; }
+.cl-body .bug-ref { color:#f85149; font-size:10px; background:#2d0e0e; padding:0 4px; border-radius:4px; margin:0 2px; }
+.cl-body .ok-ref  { color:#3fb950; font-size:10px; background:#0d1f0d; padding:0 4px; border-radius:4px; margin:0 2px; }
+
+/* ── Recommendations ── */
+.rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:14px; max-width:1100px; }
+.rec-card { background:#161b22; border-radius:8px; border:1px solid #30363d; padding:12px 14px; }
+.rec-card h3 { margin:0 0 8px; color:#ffa657; font-size:12px; }
+.rec-card p { color:#8b949e; font-size:11px; line-height:1.55; }
+.rec-card ul { margin:6px 0 0 14px; }
+.rec-card li { color:#c9d1d9; font-size:11px; margin:3px 0; }
+.rec-card .opt { color:#79c0ff; font-weight:bold; }
+
+/* ── Callout ── */
+.callout { border-left:3px solid; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; max-width:1100px; }
+.callout-blue   { border-color:#388bfd; background:#0d1930; }
+.callout-yellow { border-color:#d29922; background:#1a1500; }
+.callout-green  { border-color:#3fb950; background:#0d1a10; }
+.callout-red    { border-color:#f85149; background:#1a0d0d; }
+.callout p { color:#c9d1d9; font-size:11px; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<h1>🔍 Echo Mini (FiiO) — Changelog Completo & Análisis de Bugs</h1>
+<p class="subtitle">Ingeniería inversa de 17 versiones de firmware HIFIC · Rockchip RKNano · Enero 2025 – Febrero 2026</p>
+
+<!-- ═══ TIMELINE ═══ -->
+<div style="max-width:1100px">
+<h2>§1 — Línea de tiempo</h2>
+
+<div class="timeline">
+  <div class="tl-seg tl-v1" style="width:5.5%"  title="V1.2.5 — Jan 20">V1.25</div>
+  <div class="tl-seg tl-v1" style="width:1.5%"   title="V1.2.7 — Jan 22">·</div>
+  <div class="tl-seg tl-v1" style="width:6%"    title="V1.3.0 — Feb 12">V1.30</div>
+  <div class="tl-seg tl-v1" style="width:5%"    title="V1.4.0 — Feb 24">V1.40</div>
+  <div class="tl-seg tl-v1" style="width:6.5%"  title="V1.4.6 — Mar 24">V1.46</div>
+  <div class="tl-seg tl-v1" style="width:6%"    title="V1.5.0 — Apr 17">V1.50</div>
+  <div class="tl-seg tl-v1" style="width:5%"    title="V1.6.2 — May 7">V1.62</div>
+  <div class="tl-seg tl-v1" style="width:5%"    title="V1.7.0 — Jun 7">V1.70</div>
+  <div class="tl-seg tl-v1" style="width:6%"    title="V1.8.0 — Jul 10">V1.80</div>
+  <div class="tl-seg tl-v2" style="width:6.5%"  title="V2.0.0 — Aug 20">V2.00</div>
+  <div class="tl-seg tl-v2" style="width:6%"    title="V2.5.0 — Sep 27">V2.50</div>
+  <div class="tl-seg tl-v2" style="width:5.5%"  title="V2.6.0 — Oct 23">V2.60</div>
+  <div class="tl-seg tl-v2" style="width:5%"    title="V2.7.0 — Nov 17">V2.70</div>
+  <div class="tl-seg tl-v2" style="width:4.5%"  title="V2.8.0 — Dec 2">V2.80</div>
+  <div class="tl-seg tl-v3" style="width:6%"    title="V3.0.0 — Dec 24">V3.00</div>
+  <div class="tl-seg tl-v3" style="width:7%"    title="V3.1.0 — Jan 17 2026">V3.10</div>
+  <div class="tl-seg tl-v3" style="width:8%"    title="V3.2.0 — Feb 8 2026">V3.20 ★</div>
+</div>
+<div style="display:flex;gap:24px;margin:6px 0 16px;">
+  <span style="color:#1f6feb;font-size:10px">■ Serie V1 (25–28 MB)</span>
+  <span style="color:#388bfd;font-size:10px">■ Serie V2 (32 MB, 5 temas)</span>
+  <span style="color:#1a7f37;font-size:10px">■ Serie V3 (32 MB, struct reorg.)</span>
+  <span style="color:#ffa657;font-size:10px">★ = Versión más reciente conocida</span>
+</div>
+</div>
+
+<!-- ═══ KEY METRICS TABLE ═══ -->
+<div style="overflow-x:auto">
+<h2>§2 — Métricas clave por versión</h2>
+<p style="color:#8b949e;font-size:11px;margin-bottom:8px;">Celdas en <span style="color:#7ee787">verde</span> = cambió respecto a versión anterior · <span style="color:#ffa657">naranja</span> = cambio arquitectural importante · <span style="color:#f85149">rojo</span> = posible bug</p>
+<table>
+<tr>
+  <th>Versión</th><th>Fecha build</th><th>Archivo<br>(HIFIC#)</th><th>Tamaño</th>
+  <th>r26<br>entries</th><th>Block<br>size</th><th>Temas</th>
+  <th>CMP<br>thresh</th><th>LDRB.W<br>imm12</th><th>Settings<br>pool ptr</th>
+  <th>Dispatch<br>offset</th><th>P5<br>MB</th><th>fw_end<br>MB</th>
+</tr>
+<tr class="v1-row"><td class="td-name">V 1.2.5</td><td class="td-date">2025-01-20</td><td class="td-num">125</td><td>25 MB</td><td class="td-num">686</td><td class="td-num">317</td><td>2</td><td>0x34(52)</td><td class="td-num">0x5A2</td><td class="td-num">0x03025630</td><td>0x3D01A</td><td>15.5</td><td>25.5</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.2.7</td><td class="td-date">2025-01-22</td><td class="td-num">127</td><td>25 MB</td><td class="td-num">686</td><td class="td-num">317</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td class="td-bug">0x03025638 ⚠</td><td class="td-changed">0x3CFC2</td><td>15.5</td><td>25.5</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.3.0</td><td class="td-date">2025-02-12</td><td class="td-num">30</td><td>25 MB</td><td class="td-changed">694 (+8)</td><td class="td-changed">321 (+4)</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td class="td-num">0x03025638</td><td>0x3CFC2</td><td>15.5</td><td>25.5</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.4.0</td><td class="td-date">2025-02-24</td><td class="td-num">40</td><td>25 MB</td><td class="td-changed">714 (+20)</td><td class="td-changed">331 (+10)</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td class="td-maj">0x0301C028 ★</td><td class="td-changed">0x3D576</td><td>15.9</td><td>25.9</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.4.6</td><td class="td-date">2025-03-24</td><td class="td-num">46</td><td>25 MB</td><td>714</td><td>331</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td class="td-changed">0x0301C034</td><td class="td-changed">0x3DB32</td><td>15.9</td><td>26.0</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.5.0</td><td class="td-date">2025-04-17</td><td class="td-num">150</td><td>25 MB</td><td class="td-changed">716 (+2)</td><td class="td-changed">332 (+1)</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td>0x0301C034</td><td class="td-changed">0x3DCEA</td><td>15.9</td><td>26.0</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.6.2</td><td class="td-date">2025-05-07</td><td class="td-num">162</td><td>25 MB</td><td>716</td><td>332</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td>0x0301C034</td><td class="td-changed">0x3DDB6</td><td>15.9</td><td>26.0</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.7.0</td><td class="td-date">2025-06-07</td><td class="td-num">170</td><td>26 MB</td><td class="td-changed">748 (+32)</td><td class="td-changed">348 (+16)</td><td>2</td><td>0x34</td><td class="td-num">0x5A2</td><td>0x0301C034</td><td class="td-changed">0x3E2FE</td><td>16.3</td><td>26.4</td></tr>
+<tr class="v1-row"><td class="td-name">V 1.8.0</td><td class="td-date">2025-07-10</td><td class="td-num">180</td><td>28 MB</td><td class="td-maj">1407 (+659)</td><td class="td-bug">268 ↓ ⚠</td><td class="td-maj">5 ★</td><td class="td-maj">0x43(67)</td><td class="td-num">0x5A2</td><td class="td-maj">0x0301D184 ★</td><td class="td-changed">0x3E0D2</td><td>18.9</td><td>29.0</td></tr>
+<tr class="v2-row"><td class="td-name">V 2.0.0</td><td class="td-date">2025-08-20</td><td class="td-num">140</td><td class="td-maj">32 MB ★</td><td class="td-changed">1472 (+65)</td><td class="td-changed">281 (+13)</td><td>5</td><td>0x43</td><td class="td-maj">0x5A5 ★</td><td class="td-bug">0x0301D188 ⚠</td><td class="td-changed">0x3E172</td><td>22.5</td><td>32.7</td></tr>
+<tr class="v2-row"><td class="td-name">V 2.5.0</td><td class="td-date">2025-09-27</td><td class="td-num">50</td><td>32 MB</td><td>1472</td><td>281</td><td>5</td><td>0x43</td><td>0x5A5</td><td class="td-bug">0x0301D128 ⚠</td><td class="td-changed">0x3E0FA</td><td>22.5</td><td>32.7</td></tr>
+<tr class="v2-row"><td class="td-name">V 2.6.0</td><td class="td-date">2025-10-23</td><td class="td-num">60</td><td>32 MB</td><td>1472</td><td>281</td><td>5</td><td>0x43</td><td>0x5A5</td><td>0x0301D128</td><td>0x3E0FA</td><td>22.5</td><td>32.7</td></tr>
+<tr class="v2-row"><td class="td-name">V 2.7.0</td><td class="td-date">2025-11-17</td><td class="td-num">70</td><td>32 MB</td><td class="td-changed">1492 (+20)</td><td class="td-changed">285 (+4)</td><td>5</td><td>0x43</td><td>0x5A5</td><td class="td-changed">0x0301D134</td><td class="td-changed">0x3E112</td><td>22.7</td><td>32.8</td></tr>
+<tr class="v2-row"><td class="td-name">V 2.8.0</td><td class="td-date">2025-12-02</td><td class="td-num">80</td><td>32 MB</td><td class="td-changed">1592 (+100)</td><td class="td-changed">305 (+20)</td><td>5</td><td>0x43</td><td>0x5A5</td><td class="td-changed">0x0301D13C</td><td class="td-changed">0x3E29A</td><td>23.0</td><td>33.2</td></tr>
+<tr class="v3-row"><td class="td-name">V 3.0.0</td><td class="td-date">2025-12-24</td><td class="td-num">00</td><td>32 MB</td><td class="td-changed">1602 (+10)</td><td class="td-changed">307 (+2)</td><td>5</td><td>0x43</td><td class="td-maj">0x34F ★★</td><td class="td-ok">0x0301D140 ✓</td><td class="td-changed">0x3DF1A</td><td>23.0</td><td>33.2</td></tr>
+<tr class="v3-row"><td class="td-name">V 3.1.0</td><td class="td-date">2026-01-17</td><td class="td-num">10</td><td>32 MB</td><td>1602</td><td>307</td><td>5</td><td>0x43</td><td>0x34F</td><td class="td-ok">0x0301D140 ✓</td><td>0x3DF0E</td><td>23.0</td><td>33.2</td></tr>
+<tr class="v3-row"><td class="td-name">V 3.2.0 ★</td><td class="td-date">2026-02-08</td><td class="td-num">20</td><td>32 MB</td><td>1602</td><td>307</td><td>5</td><td>0x43</td><td>0x34F</td><td class="td-ok">0x0301D140 ✓</td><td>0x3DF5A</td><td>23.0</td><td>33.2</td></tr>
+</table>
+</div>
+
+<!-- ═══ CHANGELOG ═══ -->
+<h2>§3 — Changelog detallado (qué cambió en cada versión)</h2>
+<div class="changelog">
+  <div style="display:grid;grid-template-columns:110px 80px 60px 1fr;padding:4px 0;border-bottom:1px solid #30363d;">
+    <div style="color:#79c0ff;font-size:11px">VERSIÓN</div>
+    <div style="color:#79c0ff;font-size:11px">FECHA</div>
+    <div style="color:#79c0ff;font-size:11px">TIPO</div>
+    <div style="color:#79c0ff;font-size:11px">CAMBIOS</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.2.5</div>
+    <div class="cl-date">2025-01-20</div>
+    <div><span class="cl-type cl-feat">INICIAL</span></div>
+    <div class="cl-body">Primera versión conocida. 25 MB, 2 temas (A+B), 686 entradas ROCK26, bloque de 317 imágenes. Settings struct en RAM a 0x03025630. Dispatch con 1 slot ADDW #317 para tema B. CMP threshold = 52 (0x34) recursos compartidos.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.2.7</div>
+    <div class="cl-date">2025-01-22</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Solo 2 días después. Sin cambio de recursos (r26=686, blk=317). Dispatch reubicado (0x3D01A→0x3CFC2). Settings pool ptr corregido de 0x03025630 a 0x03025638 <span class="bug-ref">FIX BUG-001</span> — posible alineación incorrecta del struct en V1.2.5.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.3.0</div>
+    <div class="cl-date">2025-02-12</div>
+    <div><span class="cl-type cl-rsrc">RECURSOS</span></div>
+    <div class="cl-body">+8 entradas ROCK26 (686→694), bloque creció de 317 a 321 (+4 imágenes por tema). Dispatch en misma posición (0x3CFC2). Probablemente se añadieron animaciones o iconos faltantes al reproductor.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.4.0</div>
+    <div class="cl-date">2025-02-24</div>
+    <div><span class="cl-type cl-rsrc">RECURSOS</span></div>
+    <div class="cl-body">+20 entradas (714, blk=331, +10/tema). <strong>Settings struct reubicado</strong> a nueva dirección RAM 0x0301C028 (cambió ~3 MB respecto a V1.3.0). fw_end creció de 25.5 a 25.9 MB indicando expansión del código.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.4.6</div>
+    <div class="cl-date">2025-03-24</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Sin cambio de recursos (r26=714, blk=331). Pool ptr +12 bytes (0x0301C028→0x0301C034). Dispatch reubicado. Parche de código puro — bug en lógica UI o en el sistema de archivos del dispositivo.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.5.0</div>
+    <div class="cl-date">2025-04-17</div>
+    <div><span class="cl-type cl-rsrc">RECURSOS</span></div>
+    <div class="cl-body">+2 entradas mínimas (716, blk=332, +1/tema). Probablemente 1 imagen de carga o icono por tema. Pool ptr estable. Solo cambio cosmético de recursos.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.6.2</div>
+    <div class="cl-date">2025-05-07</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Idénticos recursos (r26=716, blk=332). Solo el dispatch se reubicó ligeramente (0x3DCEA→0x3DDB6, +0xC6 bytes). Probablemente fix en control de volumen, bluetooth o lectura de tarjeta. La denominación "1.6.2" (no 1.7) sugiere hotfix urgente.</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.7.0</div>
+    <div class="cl-date">2025-06-07</div>
+    <div><span class="cl-type cl-feat">FEATURE</span></div>
+    <div class="cl-body">Archivo creció de 25 a 26 MB (+1 MB). +32 entradas (748, blk=348, +16/tema). Aunque sigue con 2 temas, se añadió significativamente más contenido por tema. Primera versión con más de 340 imágenes por bloque. Posiblemente preparación para multi-tema. <span class="bug-ref">INTRODUCE BUG-003</span> — dispatch IT+ADDW con encoding alternativo F500 (vs F200 en versiones posteriores).</div>
+  </div>
+
+  <div class="cl-row cl-v1">
+    <div class="cl-ver">V 1.8.0</div>
+    <div class="cl-date">2025-07-10</div>
+    <div><span class="cl-type cl-feat">MAYOR</span></div>
+    <div class="cl-body"><strong>Expansión a 5 temas (A, B, C, D, E).</strong> r26 saltó de 748 a 1407 (+659 entradas). 4 slots ADDW en dispatch. CMP threshold cambió de 52 a 67 recursos compartidos (+15 shared). Archivo +2 MB (28 MB). PERO bloque bajó de 348 a 268 imágenes — solo se incluyeron imágenes esenciales por tema. <span class="bug-ref">INTRODUCE BUG-004</span> — faltan 13 imágenes por tema (comparado con V2.0.0). <span class="bug-ref">INTRODUCE BUG-002</span> — orden E/D invertido en dispatch.</div>
+  </div>
+
+  <div class="cl-row cl-v2">
+    <div class="cl-ver">V 2.0.0</div>
+    <div class="cl-date">2025-08-20</div>
+    <div><span class="cl-type cl-feat">MAYOR</span></div>
+    <div class="cl-body"><strong>TRANSICIÓN A 32 MB.</strong> Expansión masiva de recursos: +65 entradas (1472), bloque creció a 281 (+13/tema). <span class="ok-ref">CORRIGE BUG-004</span> parcialmente — añadidas las imágenes faltantes por tema. LDRB.W imm12 cambió de 0x5A2 a 0x5A5 — desplazamiento del byte theme_index dentro del struct. Settings ptr = 0x0301D188. <span class="bug-ref">INTRODUCE BUG-005</span> — el puntero 0x0301D188 difiere en +0x60 del que usa V2.5.0.</div>
+  </div>
+
+  <div class="cl-row cl-v2">
+    <div class="cl-ver">V 2.5.0</div>
+    <div class="cl-date">2025-09-27</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Sin cambio de recursos (r26=1472, blk=281). Settings ptr corregido a 0x0301D128 (−0x60 vs V2.0.0). <span class="ok-ref">CORRIGE BUG-005</span> — el puntero apunta ahora a la dirección estable del struct en RAM. Dispatch reubicado. Cambio de código puro. (Nota: numeración saltó de 2.0 a 2.5 — posiblemente hubo versiones internas intermedias no publicadas.)</div>
+  </div>
+
+  <div class="cl-row cl-v2">
+    <div class="cl-ver">V 2.6.0</div>
+    <div class="cl-date">2025-10-23</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Idénticos recursos a V2.5.0 (r26=1472, blk=281, mismo p5off y fw_end). Dispatch en idéntico offset (0x3E0FA). El único cambio son bytes en la sección de código — fix de comportamiento sin impacto en recursos.</div>
+  </div>
+
+  <div class="cl-row cl-v2">
+    <div class="cl-ver">V 2.7.0</div>
+    <div class="cl-date">2025-11-17</div>
+    <div><span class="cl-type cl-rsrc">RECURSOS</span></div>
+    <div class="cl-body">+20 entradas (1492, blk=285, +4/tema). Posiblemente nuevas variantes de iconos de batería o EQ. Pool ptr cambió +12 bytes (0x0301D128→0x0301D134) — pequeña reubicación del struct. fw_end creció levemente (+0.1 MB).</div>
+  </div>
+
+  <div class="cl-row cl-v2">
+    <div class="cl-ver">V 2.8.0</div>
+    <div class="cl-date">2025-12-02</div>
+    <div><span class="cl-type cl-rsrc">RECURSOS</span></div>
+    <div class="cl-body"><strong>Mayor adición de recursos en la serie V2:</strong> +100 entradas (1592, blk=305, +20/tema). Pool ptr avanzó +8 bytes. Probablemente se añadieron pantallas de EQ, artwork, o animaciones más ricas. fw_end creció a 33.2 MB (estable hasta V3.2.0).</div>
+  </div>
+
+  <div class="cl-row cl-v3">
+    <div class="cl-ver">V 3.0.0</div>
+    <div class="cl-date">2025-12-24</div>
+    <div><span class="cl-type cl-arch">ARQT.</span></div>
+    <div class="cl-body"><strong>Inicio de la Serie V3 — Reorganización del settings struct.</strong> r26 creció a 1602 (+10, blk=307). <strong>LDRB.W imm12 cambió de 0x5A5 → 0x34F</strong> — el byte theme_index se desplazó −0x256 bytes dentro del struct. Pool ptr estabilizado en 0x0301D140 (valor final). Dispatch reubicado (-0x380 bytes respecto a V2.8.0 — limpieza de código). <span class="bug-ref">BREAKING CHANGE</span> — cualquier patch para V2.x es incompatible con V3.x.</div>
+  </div>
+
+  <div class="cl-row cl-v3">
+    <div class="cl-ver">V 3.1.0</div>
+    <div class="cl-date">2026-01-17</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Sin cambio de recursos (r26=1602, blk=307). Pool ptr estable. Dispatch casi idéntico (0x3DF0E vs 0x3DF1A — solo 12 bytes de diferencia). Fix de código puro. Posiblemente corrección de crash en escenario específico de navegación de menús.</div>
+  </div>
+
+  <div class="cl-row cl-v3">
+    <div class="cl-ver">V 3.2.0 ★</div>
+    <div class="cl-date">2026-02-08</div>
+    <div><span class="cl-type cl-fix">BUG FIX</span></div>
+    <div class="cl-body">Sin cambio de recursos (r26=1602, blk=307). Pool ptr estable. Dispatch en 0x3DF5A (desplazado +0x4C vs V3.1.0). <strong>Versión más reciente conocida.</strong> Es la base del proyecto EchoMiniCustomizer. Al expansión a 6 temas se realiza desde esta base.</div>
+  </div>
+</div>
+
+<!-- ═══ BUG CATALOG ═══ -->
+<h2>§4 — Catálogo de bugs encontrados</h2>
+<div class="bug-grid">
+
+  <div class="bug-card sev-high">
+    <div class="bug-header">
+      <span class="bug-id">BUG-001</span>
+      <span class="bug-title">Settings struct pointer incorrecto en V1.2.5</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V1.2.5</span></p>
+      <p><strong>Síntoma:</strong> Pool LDR apunta a 0x03025630 pero el struct correcto está en 0x03025638 (+8 bytes). El byte de theme_index en [R2,#0x5A2] leería datos incorrectos → el cambio de tema podría aplicar recursos del tema incorrecto.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO V1.2.7</span></p>
+      <p><strong>Reparación:</strong> FiiO corrigió el pool literal value en el código ARM. Parchear manualmente la palabra en el pool literal a la dirección correcta.</p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-high">
+    <div class="bug-header">
+      <span class="bug-id">BUG-002</span>
+      <span class="bug-title">Orden E/D invertido en dispatch (design quirk)</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V1.8.0</span> <span class="badge b-v">V2.x</span> <span class="badge b-v">V3.x</span></p>
+      <p><strong>Síntoma:</strong> El dispatch comprueba theme_index=4 (E) ANTES que theme_index=3 (D), y les asigna los bloques en orden de posición (no hw_index). E recibe ADDW×3, D recibe ADDW×4. Las imágenes de tema D están almacenadas en posición 4×block y las de E en posición 3×block.</p>
+      <p><strong>Impacto:</strong> Las imágenes son correctas si se navega normalmente. PERO si se asume que hw_index=N → bloque N, se obtiene resultado incorrecto al calcular offsets. Causa confusión en RE y customización.</p>
+      <p><strong>Estado:</strong> <span class="badge b-design">NUNCA CORREGIDO — DISEÑO</span></p>
+      <p><strong>Mi recomendación:</strong> Documentar explícitamente: el dispatch sigue orden posicional (B=1°, C=2°, E=3°, D=4°), no hw_index×block. En EchoMiniCustomizer siempre usar dispatch_position×block_size.</p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-med">
+    <div class="bug-header">
+      <span class="bug-id">BUG-003</span>
+      <span class="bug-title">Encoding ADDW alternativo en V1.7.0 (F500 vs F200)</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V1.7.0</span></p>
+      <p><strong>Síntoma:</strong> V1.7.0 usa el opcode 0xF500 (ADD.W T3 con modificed-immediate) en lugar de 0xF200 (ADDW T4 con plain 12-bit imm) para el dispatch. El encoding T3 usa tabla de rotación para el inmediato, produciendo un valor diferente al que produciría la misma codificación en T4.</p>
+      <p><strong>Impacto:</strong> Si la codificación T3 produce el valor correcto (348), funciona bien. El cambio a T4 (F200) en V1.8.0 indica que FiiO estandarizó el encoding.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CAMBIADO V1.8.0 — T4 a partir de ahí</span></p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-high">
+    <div class="bug-header">
+      <span class="bug-id">BUG-004</span>
+      <span class="bug-title">Faltan imágenes por tema en V1.8.0 (blk=268 vs blk=281)</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V1.8.0</span></p>
+      <p><strong>Síntoma:</strong> Al expandir a 5 temas, FiiO redujo el bloque de 348 a 268 imágenes por tema (80 imágenes menos que en la serie V1.7.0). Faltan 13 imágenes por tema respecto a la versión siguiente (V2.0.0 tiene blk=281).</p>
+      <p><strong>Impacto visual:</strong> Pantallas de UI incompletas o repetidas en temas B-E. Posiblemente iconos de EQ, artwork del reproductor o fondos de pantalla ausentes.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO V2.0.0</span> (blk=281, +13/tema)</p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-med">
+    <div class="bug-header">
+      <span class="bug-id">BUG-005</span>
+      <span class="bug-title">Settings pool ptr incorrecto en V2.0.0 (prototipo)</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V2.0.0 (HIFIC140)</span></p>
+      <p><strong>Síntoma:</strong> Pool ptr = 0x0301D188. V2.5.0 usa 0x0301D128 (−0x60 = −96 bytes). Sugiere que en V2.0.0 el settings struct estaba en una dirección errónea o el dispatch apuntaba al struct incorrecto.</p>
+      <p><strong>Impacto:</strong> El tema activo se leería de [0x0301D188+0x5A5] = 0x0301D72D. En V2.5.0 sería [0x0301D128+0x5A5] = 0x0301D6CD. Podrían apuntar a regiones de RAM con comportamiento diferente.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO V2.5.0</span></p>
+      <p><strong>Evidencia:</strong> HIFIC140 parece ser un build de PROTOTIPO o build interno, no destinado a release público directo.</p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-high">
+    <div class="bug-header">
+      <span class="bug-id">BUG-006</span>
+      <span class="bug-title">CMP threshold inconsistente V1.x → V1.8.0 (52 vs 67)</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">V1.2.5 – V1.7.0</span> (al comparar con V1.8.0+)</p>
+      <p><strong>Síntoma:</strong> V1.x usa CMP R0,#0x34 (52 shared). V1.8.0+ usa CMP R0,#0x43 (67 shared). Los índices 52–66 (15 recursos) se trataban como "shared" en V1.8.0 pero como "per-tema" en V1.7.0.</p>
+      <p><strong>Impacto:</strong> Cross-version incompatibility — recursos importados en V1.7.0 tendrían índices incorrectos en V1.8.0+. Si alguien tenía temas guardados, se romperían al actualizar.</p>
+      <p><strong>Estado:</strong> <span class="badge b-design">BREAKING CHANGE V1.8.0 — Intencional por expansión a 5 temas</span></p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-high">
+    <div class="bug-header">
+      <span class="bug-id">BUG-007</span>
+      <span class="bug-title">LDRB.W offset 0x5A5→0x34F entre V2.x y V3.x</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-v">Migración V2→V3</span></p>
+      <p><strong>Síntoma:</strong> En V2.x, el theme_index está en [settings_ptr + 0x5A5]. En V3.x, está en [settings_ptr + 0x34F]. El struct se reorganizó: el byte bajó −598 posiciones (0x5A5−0x34F = 0x256 = 598 bytes).</p>
+      <p><strong>Impacto CRÍTICO para customización:</strong> Cualquier patch para V2.x que hardcodee el offset 0x5A5 FALLARÁ en V3.x leyendo bytes de otro campo del struct → tema siempre en A o valores erráticos.</p>
+      <p><strong>Estado:</strong> <span class="badge b-design">BREAKING CHANGE V3.0.0 — Intencional, struct reorganizado</span></p>
+      <p><strong>Mi recomendación:</strong> EchoMiniCustomizer debe detectar la versión (via pool ptr + LDRB.W imm12) antes de aplicar patches. <span style="color:#ffa657">VER OPCIÓN B en §6.</span></p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-crit">
+    <div class="bug-header">
+      <span class="bug-id">BUG-008</span>
+      <span class="bug-title">part5_size no clampeado → fw_end excede flash → BRICK</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-ours">EchoMiniCustomizer (nuestro bug)</span></p>
+      <p><strong>Síntoma:</strong> Al expandir de 5→6 temas, el código antiguo calculaba part5_size incluyendo el espacio de las nuevas entradas. part5_size creció de 45 MB a 54 MB. fw_end se calculó de los datos inflados: 0x3DE0000 (64.7 MB) > flash disponible (~57 MB). Bootloader no encontró la copia del header → BRICK.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO en customizer</span> con <code>max(new_p5_end, self.part5_size)</code></p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-crit">
+    <div class="bug-header">
+      <span class="bug-id">BUG-009</span>
+      <span class="bug-title">Trailer C6 18 C6 18 sobreescrito → firmware rechazado</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-ours">EchoMiniCustomizer (nuestro bug)</span></p>
+      <p><strong>Síntoma:</strong> _fix_integrity() leía los 4 bytes finales del archivo DESPUÉS de extenderlo con ceros. El trailer se leía como 00 00 00 00. Al restaurarlo al final, escribía ceros en lugar del valor correcto C6 18 C6 18.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO en customizer</span> — leer trailer al INICIO de _fix_integrity(), antes de cualquier resize.</p>
+    </div>
+  </div>
+
+  <div class="bug-card sev-med">
+    <div class="bug-header">
+      <span class="bug-id">BUG-010</span>
+      <span class="bug-title">Boot/charge/shutdown data sobreescrito al expandir temas</span>
+    </div>
+    <div class="bug-body">
+      <p><strong>Afecta:</strong> <span class="badge b-ours">EchoMiniCustomizer (nuestro bug)</span></p>
+      <p><strong>Síntoma:</strong> Al llamar expand_theme_count(), el código antiguo regeneraba las entradas de boot/charge/shutdown para TODOS los temas desde cero, sobreescribiendo las animaciones personalizadas de los temas 1..N-1 ya existentes.</p>
+      <p><strong>Estado:</strong> <span class="badge b-fixed">CORREGIDO</span> — preservar entradas existentes para temas 1..current_n-1, solo generar las nuevas.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ PROPAGATION MATRIX ═══ -->
+<h2>§5 — Matriz de propagación de bugs por versión</h2>
+<p style="color:#8b949e;font-size:11px;margin-bottom:8px;">
+  <span style="color:#f85149">■</span> Presente (BUG activo) &nbsp;
+  <span style="color:#3fb950">■</span> Corregido en esta versión &nbsp;
+  <span style="color:#ffa657">■</span> Presente (diseño/breaking change) &nbsp;
+  <span style="color:#30363d">■</span> No aplica
+</p>
+<div class="matrix">
+<table class="mx-table">
+<tr>
+  <th class="mx-label">Bug</th>
+  <th>V1.25</th><th>V1.27</th><th>V1.30</th><th>V1.40</th><th>V1.46</th>
+  <th>V1.50</th><th>V1.62</th><th>V1.70</th><th>V1.80</th>
+  <th>V2.00</th><th>V2.50</th><th>V2.60</th><th>V2.70</th><th>V2.80</th>
+  <th>V3.00</th><th>V3.10</th><th>V3.20</th>
+</tr>
+<tr>
+  <td class="mx-label">BUG-001 Pool ptr V1.25</td>
+  <td class="mx-present">●</td><td class="mx-fixed">✓</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-002 E/D invertido</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td>
+  <td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-003 Enc. F500 V1.70</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-present">●</td><td class="mx-fixed">✓</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-004 Imágenes faltantes</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-present">●</td><td class="mx-fixed">✓</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-005 Pool ptr V2.00</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-present">●</td><td class="mx-fixed">✓</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-006 Threshold 52 vs 67</td>
+  <td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td>
+  <td class="mx-fixed">✓</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-007 LDRB.W 0x5A5→0x34F</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td><td class="mx-partial">◐</td>
+  <td class="mx-fixed">✓</td><td class="mx-na">–</td><td class="mx-na">–</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-008 part5_size brick</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-fixed">✓</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-009 Trailer C618</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-fixed">✓</td>
+</tr>
+<tr>
+  <td class="mx-label">BUG-010 Boot data sobreescrito</td>
+  <td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td><td class="mx-na">–</td>
+  <td class="mx-fixed">✓</td>
+</tr>
+</table>
+</div>
+
+<!-- ═══ RECOMMENDATIONS ═══ -->
+<h2>§6 — Opciones de reparación / mejoras propuestas</h2>
+<div class="rec-grid">
+
+  <div class="rec-card">
+    <h3>🔧 OPCIÓN A — Multi-version EchoMiniCustomizer</h3>
+    <p>El customizer actualmente solo soporta V3.2.0. Para soportar V2.x y versiones anteriores:</p>
+    <ul>
+      <li><span class="opt">Detección automática:</span> Leer pool ptr + LDRB.W imm12 al cargar el IMG para determinar la versión y el offset correcto del theme_index</li>
+      <li><span class="opt">Tabla de versiones:</span> pool_ptr → versión → ldrb_off → CMP threshold</li>
+      <li><span class="opt">Patch compatible:</span> Al parchear dispatch, usar los valores correctos para esa versión</li>
+    </ul>
+    <p style="margin-top:6px;color:#8b949e">Impacto: soporte de V1.8.0+. Las versiones V1.x de 1 o 2 temas requieren mayor investigación.</p>
+  </div>
+
+  <div class="rec-card">
+    <h3>🔧 OPCIÓN B — Corrección del orden E/D (BUG-002)</h3>
+    <p>El dispatch ordena E antes que D, asignándoles posiciones "incorrectas" vs su hw_index.</p>
+    <ul>
+      <li><span class="opt">Opción B1 (Safe):</span> No cambiar nada — los temas ya funcionan. Documentar que el orden de bloques en ROCK26 es A, B, C, E, D (no A, B, C, D, E)</li>
+      <li><span class="opt">Opción B2 (Fix):</span> Cambiar dispatch: CMP#3→ADDW 3×blk, CMP#4→ADDW 4×blk. Luego reordenar las entradas ROCK26 para que D y E queden en posición correcta</li>
+    </ul>
+    <p style="margin-top:6px;color:#8b949e">Recomendación: Opción B1. El cambio B2 requiere mover bloques completos de 307×2 entradas en la tabla ROCK26 — alto riesgo.</p>
+  </div>
+
+  <div class="rec-card">
+    <h3>🔧 OPCIÓN C — Expansión controlada a 6+ temas</h3>
+    <p>Actualmente el customizer puede expandir a 6 temas. Para protección adicional:</p>
+    <ul>
+      <li><span class="opt">Límite explícito:</span> fw_end ≤ 0x3530000 (55.6 MB) — no permitir expansión si excede este límite</li>
+      <li><span class="opt">Validación pre-flash:</span> Verificar que file_size ≤ 56 MB antes de exportar el IMG</li>
+      <li><span class="opt">Dry-run mode:</span> Calcular el tamaño final sin escribir, mostrar al usuario cuánto espacio queda</li>
+      <li><span class="opt">7 temas:</span> Técnicamente posible con otro code cave slot — evaluar si el dispatch tiene espacio para CMP#6+ADDW×6×307=1842</li>
+    </ul>
+  </div>
+
+  <div class="rec-card">
+    <h3>🔧 OPCIÓN D — Port del firmware a versión anterior (downgrade assist)</h3>
+    <p>Si el usuario tiene temas customizados en V3.2.0 y quiere aplicarlos a V2.x o V1.8.0:</p>
+    <ul>
+      <li><span class="opt">Problem:</span> Block size cambia (V2.8.0=305, V3.x=307), LDRB.W imm12 diferente</li>
+      <li><span class="opt">Solución:</span> Función de export/import que adapte los índices de recursos al block size de la versión destino</li>
+      <li><span class="opt">Limitación:</span> V1.8.0 (blk=268) no tiene imágenes suficientes para todos los recursos de V3.x</li>
+    </ul>
+  </div>
+
+  <div class="rec-card">
+    <h3>🔧 OPCIÓN E — Patch retroactivo para HIFIC180 (BUG-004)</h3>
+    <p>V1.8.0 tiene 13 imágenes faltantes por tema (268 vs 281 de V2.0.0).</p>
+    <ul>
+      <li><span class="opt">Método:</span> Copiar las entradas metadata 268..280 (13 faltantes) del tema A de V2.0.0 hacia V1.8.0 para cada tema B-E</li>
+      <li><span class="opt">Resultado:</span> V1.8.0 parcheado tendría blk=281 y funcionaría como V2.0.0 en términos de recursos</li>
+      <li><span class="opt">Riesgo:</span> El dispatch ADDW sigue siendo #268 — habría que parchearlo también a #281</li>
+    </ul>
+    <p style="margin-top:6px;color:#8b949e">Útil si alguien tiene dispositivos con V1.8.0 sin posibilidad de actualizar.</p>
+  </div>
+
+  <div class="rec-card">
+    <h3>🔍 OPCIÓN F — Análisis de V2.5.0 vs V2.0.0 (BUG-005 profundo)</h3>
+    <p>HIFIC140 (V2.0.0) parece ser un build prototipo — sus bytes de código son diferentes a V2.5.0 a pesar de tener los mismos recursos.</p>
+    <ul>
+      <li><span class="opt">Investigar:</span> ¿Qué código cambió entre V2.0.0 y V2.5.0? (diff de código sección 0x0–p5off)</li>
+      <li><span class="opt">Objetivo:</span> Identificar si hay bugs adicionales en V2.0.0 que justifiquen el salto a V2.5.0</li>
+      <li><span class="opt">Método:</span> python diff de bloques de 4KB entre ambas secciones de código</li>
+    </ul>
+    <p style="margin-top:6px;color:#8b949e">Si se necesita soporte para dispositivos en V2.0.0, este análisis es prioritario.</p>
+  </div>
+
+</div>
+
+<!-- ═══ SUMMARY ═══ -->
+<h2>§7 — Resumen ejecutivo</h2>
+<div style="max-width:1100px">
+<div class="callout callout-blue">
+<p><strong>🏗 Tres grandes eras de firmware:</strong><br>
+<strong>V1.x (25–28 MB, Ene–Jul 2025):</strong> Era de 2 temas, ~686–748 recursos, código pequeño. Múltiples iteraciones corrigiendo bugs de pool ptr y añadiendo imágenes. Terminó con V1.8.0 expandiendo a 5 temas pero con recursos incompletos.<br><br>
+<strong>V2.x (32 MB, Ago–Dic 2025):</strong> Era estable de 5 temas completos. Bloque creció de 281 a 305 imágenes. Settings struct inestable (ptr cambiando en cada versión). Terminó cuando el struct fue reorganizado completamente.<br><br>
+<strong>V3.x (32 MB, Dic 2025–Feb 2026):</strong> Era final. Settings struct reorganizado y estabilizado en 0x0301D140. theme_index movido de offset 0x5A5 a 0x34F. Bloque = 307 imágenes (estable). Es la base del EchoMiniCustomizer.</p>
+</div>
+
+<div class="callout callout-yellow">
+<p><strong>⚠ Bugs nunca corregidos por FiiO (presentes en todas las versiones 5-temas):</strong><br>
+BUG-002 (orden E/D en dispatch) y BUG-007 (breaking change V2→V3) son los únicos "bugs" persistentes. El orden E/D es en realidad un quirk de diseño — las imágenes están donde el firmware las busca. El breaking change V2→V3 fue intencional.</p>
+</div>
+
+<div class="callout callout-green">
+<p><strong>✅ Estado de EchoMiniCustomizer (V3.2.0):</strong><br>
+Todos los bugs críticos de nuestro customizer han sido corregidos: BUG-008 (brick por part5_size), BUG-009 (trailer perdido), BUG-010 (boot data sobreescrito). El firmware generado HIFIC21.IMG está verificado como seguro (56 MB, fw_end=0x3530000, trailer C6 18 C6 18, header copy OK).</p>
+</div>
+</div>
+
+<div style="margin-top:50px;border-top:1px solid #21262d;padding-top:14px;color:#484f58;font-size:11px;">
+  Echo Mini Customizer — Firmware Analysis · 17 versiones HIFIC125 – HIFIC20 · Rockchip RKNano<br>
+  Técnica: Binary diff, ARM Thumb2 disassembly, ROCK26 metadata parsing, header field extraction<br>
+  Generado por sesión de ingeniería inversa — Enero–Febrero 2026
+</div>
+
+</body>
+</html>
