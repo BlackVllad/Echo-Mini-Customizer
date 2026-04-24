@@ -2174,6 +2174,7 @@ class EchoMiniCustomizer(QMainWindow):
         self._undo_stack = {}   # {res_name: [(raw_bytes, qimage), ...]} — max 5 levels
 
         self._build_ui()
+        self.setAcceptDrops(True)
         QTimer.singleShot(0, self._auto_load)
 
     def _build_ui(self):
@@ -2287,28 +2288,38 @@ class EchoMiniCustomizer(QMainWindow):
         # Status bar
         self.statusBar().showMessage("Ready. Open a firmware .IMG file.")
 
-    def _auto_load(self):
-        """Automatically load firmware from the application directory."""
-        base = get_app_dir()
-        # BUG-7 FIX: removed hardcoded developer-specific path.
-        # Check known filenames in app dir root first (all supported variants).
-        for name in ("HIFIEC20.IMG", "HIFIEC320.IMG", "HIFIEC33.IMG", "HIFIEC34.IMG"):
-            candidate = base / name
-            if candidate.exists():
-                self._load_firmware(str(candidate))
-                return
-        # Search one level of subdirectories for any .IMG file
-        for d in sorted(base.iterdir()):
-            if d.is_dir():
-                for f in sorted(d.glob("*.IMG")):
-                    self._load_firmware(str(f))
+    # ------------------------------------------------------------------
+    # Drag-and-drop support
+    # ------------------------------------------------------------------
+    def dragEnterEvent(self, event):
+        """Accept drag if it contains exactly one local .IMG/.img/.bin file."""
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            if len(urls) == 1 and urls[0].isLocalFile():
+                ext = Path(urls[0].toLocalFile()).suffix.lower()
+                if ext in (".img", ".bin"):
+                    event.acceptProposedAction()
                     return
-        # Nothing found — inform user rather than silently showing a blank UI
-        QMessageBox.information(
-            self, "No firmware found",
-            "No firmware (.IMG) file was found in the application directory.\n"
-            "Use File → Open Firmware to load a firmware file manually."
+        event.ignore()
+
+    def dropEvent(self, event):
+        """Load the dropped firmware file."""
+        path = event.mimeData().urls()[0].toLocalFile()
+        self._load_firmware(path)
+
+    def _auto_load(self):
+        """On startup, immediately prompt the user to select a firmware file."""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select Firmware to Open",
+            str(get_app_dir()),
+            "Firmware (*.IMG *.img *.bin);;All (*.*)"
         )
+        if path:
+            self._load_firmware(path)
+        else:
+            self.statusBar().showMessage(
+                "No firmware loaded. Use 📂 Open Firmware to load a .IMG file."
+            )
 
     def _open_firmware(self):
         path, _ = QFileDialog.getOpenFileName(
