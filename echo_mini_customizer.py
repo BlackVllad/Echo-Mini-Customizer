@@ -173,6 +173,7 @@ class FirmwareParser:
     def _parse_theme_names(self):
         """Parse theme names from the StrTbl section."""
         self.theme_names = []
+        self._theme_strtbl_indices = []  # maps theme_names[i] → actual StrTbl slot index
         self._strtbl_info = None
         strtbl_off = struct.unpack_from('<I', self.img_data, 0xF8)[0]
         strtbl_sz = struct.unpack_from('<I', self.img_data, 0xFC)[0]
@@ -190,20 +191,22 @@ class FirmwareParser:
         eng_idx = 2 if nr_lang > 2 else 0
         section_abs = strtbl_off + lang_offsets[eng_idx]
         HEADER_SIZE = 0x3A  # bytes from entry header to name text
-        THEME_PARENT_ID = 0x0154  # parent_id marker for theme name entries
+        # V3.x firmware uses 0x0154; V2.0 firmware uses 0x0156
+        VALID_THEME_PARENT_IDS = {0x0154, 0x0156}
         for ti in range(20):
             name_addr = section_abs + self.STRTBL_THEME_NAME_OFFSET + ti * self.STRTBL_THEME_ENTRY_SIZE
             hdr_addr = name_addr - HEADER_SIZE
             if hdr_addr < 0 or name_addr + 4 > len(self.img_data):
                 break
-            # Verify this is a theme entry by checking parent_id at header[2:4]
+            # Skip non-theme entries (settings, language labels, etc.) instead of stopping
             parent_id = struct.unpack_from('<H', self.img_data, hdr_addr + 2)[0]
-            if parent_id != THEME_PARENT_ID:
-                break
+            if parent_id not in VALID_THEME_PARENT_IDS:
+                continue
             name = self._read_utf16le(name_addr)
             if not name:
-                break
+                continue
             self.theme_names.append(name)
+            self._theme_strtbl_indices.append(ti)
 
     def _read_utf16le(self, addr, max_chars=100):
         """Read a null-terminated UTF-16LE string from img_data."""
@@ -223,12 +226,18 @@ class FirmwareParser:
             return False
         if theme_index >= len(self.theme_names):
             return False
+        # Map logical theme index (0=A, 1=B, …) to actual StrTbl slot index.
+        # V2.0 firmware has non-theme entries before the theme names, so the
+        # real StrTbl slot differs from the logical index.
+        strtbl_slot = (self._theme_strtbl_indices[theme_index]
+                       if theme_index < len(self._theme_strtbl_indices)
+                       else theme_index)
         strtbl_off, nr_lang, lang_offsets = self._strtbl_info
         new_name = new_name[:99]  # max 99 chars
         encoded = new_name.encode('utf-16-le') + b'\x00\x00'
         for lang_idx in range(nr_lang):
             section_abs = strtbl_off + lang_offsets[lang_idx]
-            addr = section_abs + self.STRTBL_THEME_NAME_OFFSET + theme_index * self.STRTBL_THEME_ENTRY_SIZE
+            addr = section_abs + self.STRTBL_THEME_NAME_OFFSET + strtbl_slot * self.STRTBL_THEME_ENTRY_SIZE
             if addr + self.STRTBL_NAME_FIELD_SIZE > len(self.img_data):
                 continue
             # Clear name field, then write new name
@@ -2358,10 +2367,8 @@ class EchoMiniCustomizer(QMainWindow):
                 self.resources_by_name[res['name']] = (res, img)
 
             self._detect_active_themes()
-            # Populate active_themes from THEMES dict (not from firmware string table,
-            # since the stock firmware ships with D/E names swapped vs resource prefixes)
-            for key in list(self.active_themes.keys()):
-                self.active_themes[key] = THEMES[key]
+            # Apply firmware StrTbl display names (override hardcoded THEMES defaults)
+            self._apply_strtbl_names()
             self._refresh_theme_combo()
             self._populate_panels()
             self._update_size_label()
@@ -2466,6 +2473,28 @@ class EchoMiniCustomizer(QMainWindow):
             if count >= 50:
                 self.active_themes[key] = THEMES[key]
 
+    def _apply_strtbl_names(self):
+        """Override active_themes display names with firmware StrTbl names.
+
+        Called after _detect_active_themes() so that user-renamed names (saved
+        to the StrTbl) are respected instead of the hardcoded THEMES defaults.
+        Falls back to THEMES[key][0] when no StrTbl entry exists (e.g. newly
+        added theme slots that have not been named yet).
+        """
+        if self.firmware is None:
+            return
+        theme_keys = list(THEMES.keys())
+        for key in list(self.active_themes.keys()):
+            pfx = THEMES[key][1]
+            tidx = theme_keys.index(key) if key in theme_keys else -1
+            if (self.firmware.theme_names
+                    and 0 <= tidx < len(self.firmware.theme_names)
+                    and self.firmware.theme_names[tidx]):
+                display_name = self.firmware.theme_names[tidx]
+            else:
+                display_name = THEMES[key][0]
+            self.active_themes[key] = (display_name, pfx)
+
     def _refresh_theme_combo(self):
         """Rebuild the theme ComboBox to show only active themes."""
         self.theme_combo.blockSignals(True)
@@ -2538,10 +2567,10 @@ class EchoMiniCustomizer(QMainWindow):
         if not new_name:
             return
         if self.firmware.set_theme_name(tidx, new_name):
-            # Also update THEMES dict display name
+            # Update THEMES dict and active_themes with new display name
             THEMES[key] = (new_name, THEMES[key][1])
             if key in self.active_themes:
-                self.active_themes[key] = THEMES[key]
+                self.active_themes[key] = (new_name, THEMES[key][1])
             self._refresh_theme_combo()
             # Restore selection to the renamed theme
             for i in range(self.theme_combo.count()):
@@ -3305,8 +3334,7 @@ class EchoMiniCustomizer(QMainWindow):
                     self.all_res_images.append((res, img))
                     self.resources_by_name[res['name']] = (res, img)
                 self._detect_active_themes()
-                for key in list(self.active_themes.keys()):
-                    self.active_themes[key] = THEMES[key]
+                self._apply_strtbl_names()
                 self._refresh_theme_combo()
                 self._update_size_label()
                 self.statusBar().showMessage(
@@ -3426,6 +3454,7 @@ class EchoMiniCustomizer(QMainWindow):
 
         # Refresh theme detection and UI
         self._detect_active_themes()
+        self._apply_strtbl_names()
         self._refresh_theme_combo()
         self._populate_panels()
         self._update_size_label()
@@ -3503,8 +3532,7 @@ class EchoMiniCustomizer(QMainWindow):
                 self.resources_by_name[res['name']] = (res, img)
 
             self._detect_active_themes()
-            for key in list(self.active_themes.keys()):
-                self.active_themes[key] = THEMES[key]
+            self._apply_strtbl_names()
             self._refresh_theme_combo()
             self._populate_panels()
 
@@ -3592,8 +3620,7 @@ class EchoMiniCustomizer(QMainWindow):
                 self.resources_by_name[res['name']] = (res, img)
 
             self._detect_active_themes()
-            for key in list(self.active_themes.keys()):
-                self.active_themes[key] = THEMES[key]
+            self._apply_strtbl_names()
             self._refresh_theme_combo()
             self._populate_panels()
             QMessageBox.information(self, "Importación Completa", result)
@@ -3711,8 +3738,7 @@ class EchoMiniCustomizer(QMainWindow):
                 self.resources_by_name[res['name']] = (res, img)
 
             self._detect_active_themes()
-            for key in list(self.active_themes.keys()):
-                self.active_themes[key] = THEMES[key]
+            self._apply_strtbl_names()
             self._refresh_theme_combo()
             self._populate_panels()
             self._update_size_label()
