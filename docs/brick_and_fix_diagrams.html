@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Echo Mini — Brick &amp; Fix Diagrams</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 32px 24px;
+    min-width: 960px;
+  }
+
+  /* ── Page header ── */
+  .page-title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #555;
+    margin-bottom: 48px;
+  }
+
+  /* ── Section wrapper ── */
+  .diagram-section {
+    max-width: 860px;
+    margin: 0 auto 64px auto;
+  }
+  .diagram-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 10px 20px;
+    border-radius: 8px 8px 0 0;
+    letter-spacing: 0.5px;
+  }
+  .diagram-title.red  { background: #7b0000; color: #ffcccc; border: 1px solid #e94560; border-bottom: none; }
+  .diagram-title.green{ background: #003d00; color: #ccffcc; border: 1px solid #2b9348; border-bottom: none; }
+
+  /* ── Flow container ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 24px 32px;
+    border: 1px solid #222;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: #161b22;
+    gap: 0;
+  }
+
+  /* ── Generic node ── */
+  .node {
+    width: 100%;
+    max-width: 720px;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    position: relative;
+    border: 1.5px solid transparent;
+  }
+  .node .node-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-bottom: 4px;
+  }
+  .node strong { color: #fff; }
+  .node code {
+    font-family: 'Consolas', monospace;
+    font-size: 0.82rem;
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #79c0ff;
+  }
+
+  /* Node colours */
+  .n-start  { background: #0d3b66; border-color: #1a6db5; }
+  .n-proc   { background: #0f3460; border-color: #2a82da; }
+  .n-bug    { background: #3a1a0a; border-color: #c84b31; }
+  .n-err    { background: #2d0808; border-color: #e94560; }
+  .n-fix    { background: #0a2d0a; border-color: #2b9348; }
+  .n-data   { background: #0a2020; border-color: #1a7a7a; }
+  .n-ok     { background: #003d00; border-color: #39d353; }
+  .n-brick  { background: #1a0000; border-color: #ff4444; }
+  .n-verify { background: #1e0845; border-color: #7c3aed; }
+  .n-result { background: #0a1f0a; border-color: #2b9348; }
+
+  /* Diamond decision */
+  .diamond-wrap {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    justify-content: center;
+    margin: 4px 0;
+  }
+  .diamond {
+    position: relative;
+    padding: 14px 32px 14px 28px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.5;
+    background: #1e0845;
+    border: 1.5px solid #7c3aed;
+    border-radius: 4px;
+    clip-path: polygon(20px 0%, calc(100% - 20px) 0%, 100% 50%, calc(100% - 20px) 100%, 20px 100%, 0% 50%);
+    min-width: 340px;
+  }
+
+  /* Arrows */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 36px;
+    justify-content: center;
+    gap: 0;
+    width: 100%;
+    max-width: 720px;
+  }
+  .arrow-line {
+    width: 2px;
+    flex: 1;
+    background: #444;
+  }
+  .arrow-head {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 10px solid #444;
+  }
+  .arrow.red   .arrow-line, .arrow.red   .arrow-head { background: #e94560; border-top-color: #e94560; }
+  .arrow.green .arrow-line, .arrow.green .arrow-head { background: #2b9348; border-top-color: #2b9348; }
+  .arrow.label-arrow { height: auto; flex-direction: row; align-items: center; gap: 10px; justify-content: center; }
+  .arrow-label { font-size: 0.75rem; font-weight: 700; }
+
+  /* Fork (two-way branch) */
+  .fork {
+    width: 100%;
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    align-items: start;
+    gap: 8px;
+    margin: 4px 0;
+  }
+  .fork-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 0;
+  }
+  .fork-label { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; text-align: center; }
+  .fork-line  { width: 2px; height: 28px; }
+  .fork-head  {
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+  }
+  .fork-red   .fork-line { background: #e94560; }
+  .fork-red   .fork-head { border-top: 10px solid #e94560; }
+  .fork-green .fork-line { background: #2b9348; }
+  .fork-green .fork-head { border-top: 10px solid #2b9348; }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    max-width: 720px;
+    border-collapse: collapse;
+    font-size: 0.81rem;
+    margin: 4px 0;
+  }
+  .compare-table th {
+    padding: 8px 14px;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .compare-table td {
+    padding: 7px 14px;
+    border-top: 1px solid #222;
+    vertical-align: top;
+  }
+  .compare-table tr:last-child td { border-bottom: 1px solid #222; }
+  .th-check { background: #1e2028; color: #999; text-align: center; }
+  .th-brk   { background: #2d0808; color: #ff9999; text-align: left; }
+  .th-fix   { background: #003d00; color: #99ff99; text-align: left; }
+  .td-field { color: #8b949e; }
+  .td-bad   { color: #ff6b6b; background: #1a0505; }
+  .td-good  { color: #56d364; background: #031a03; }
+
+  /* Footer callout */
+  .callout {
+    width: 100%;
+    max-width: 720px;
+    margin-top: 8px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.81rem;
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 0.2px;
+  }
+  .callout.red   { background: #2d0808; border: 1px solid #e94560; color: #ffaaaa; }
+  .callout.green { background: #031a03; border: 1px solid #2b9348; color: #aaffaa; }
+
+  hr.divider { border: none; border-top: 1px solid #21262d; margin: 0 0 64px; }
+
+  /* Responsive note inside a node */
+  .mono-block {
+    font-family: 'Consolas', monospace;
+    font-size: 0.79rem;
+    background: rgba(0,0,0,0.35);
+    border-left: 3px solid #444;
+    padding: 6px 10px;
+    margin-top: 7px;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .mono-block .del  { color: #ff6b6b; }
+  .mono-block .ins  { color: #56d364; }
+  .mono-block .cmt  { color: #666; }
+
+  /* Trailer detail box */
+  .trailer-detail {
+    width: 100%;
+    max-width: 720px;
+    background: #1a1000;
+    border: 1.5px solid #e6ac00;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+  .trailer-detail .td-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #e6ac00;
+    margin-bottom: 10px;
+  }
+  .trailer-detail .td-row {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 6px 10px;
+    align-items: start;
+    margin-bottom: 8px;
+  }
+  .trailer-detail .td-icon { color: #e6ac00; font-size: 0.9rem; padding-top: 1px; }
+  .trailer-detail .td-text { color: #ddd; }
+  .trailer-detail .td-text strong { color: #ffe57a; }
+  .trailer-detail .td-text code {
+    font-family: 'Consolas', monospace;
+    font-size: 0.81rem;
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #ffd966;
+  }
+  .trailer-detail .td-step {
+    background: rgba(0,0,0,0.3);
+    border-left: 3px solid #e6ac00;
+    padding: 7px 10px;
+    border-radius: 0 4px 4px 0;
+    margin-top: 10px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.80rem;
+    line-height: 1.7;
+  }
+  .trailer-detail .td-step .s-bad  { color: #ff6b6b; }
+  .trailer-detail .td-step .s-ok   { color: #56d364; }
+  .trailer-detail .td-step .s-cmt  { color: #777; }
+
+  /* Chain detail box (part5_size / fw_end / file size) */
+  .chain-detail {
+    width: 100%;
+    max-width: 720px;
+    background: #060d1f;
+    border: 1.5px solid #4a9eff;
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+  .chain-detail .cd-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #4a9eff;
+    margin-bottom: 14px;
+  }
+  .chain-detail .cd-item {
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+  }
+  .chain-detail .cd-item.bad  { background: #1a0505; border-color: #e94560; }
+  .chain-detail .cd-item.good { background: #031a03; border-color: #2b9348; }
+  .chain-detail .cd-field {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #8b949e;
+    margin-bottom: 4px;
+  }
+  .chain-detail .cd-field code {
+    font-family: 'Consolas', monospace;
+    font-size: 0.78rem;
+    color: #79c0ff;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .chain-detail .cd-desc { color: #ccc; font-size: 0.82rem; }
+  .chain-detail .cd-desc strong { color: #fff; }
+  .chain-detail .cd-desc code {
+    font-family: 'Consolas', monospace;
+    font-size: 0.81rem;
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #ffa657;
+  }
+  .chain-detail .val-bad  { color: #ff6b6b; font-weight: 700; }
+  .chain-detail .val-good { color: #56d364; font-weight: 700; }
+  .chain-detail .cd-connector {
+    text-align: center;
+    color: #4a9eff;
+    font-size: 1rem;
+    margin: 2px 0;
+    opacity: 0.7;
+  }
+  .chain-detail .cd-formula {
+    font-family: 'Consolas', monospace;
+    font-size: 0.79rem;
+    background: rgba(0,0,0,0.4);
+    border-left: 3px solid #4a9eff;
+    padding: 8px 12px;
+    border-radius: 0 4px 4px 0;
+    margin: 12px 0;
+    line-height: 1.9;
+    white-space: pre;
+  }
+  .chain-detail .cd-formula .f-bad  { color: #ff6b6b; }
+  .chain-detail .cd-formula .f-ok   { color: #56d364; }
+  .chain-detail .cd-formula .f-cmt  { color: #666; }
+  .chain-detail .f-key  { color: #79c0ff; }
+  .chain-detail .cd-images {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a3a2a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 0.81rem;
+    color: #ccc;
+    line-height: 1.7;
+  }
+  .chain-detail .cd-images strong { color: #ffd700; }
+</style>
+</head>
+<body>
+
+<div class="page-title">Echo Mini Customizer — Análisis del Brick</div>
+<div class="page-sub">Diagrama 1: por qué HIFIEC21_BRICKED brickeó el dispositivo &nbsp;|&nbsp; Diagrama 2: cómo se solucionó</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DIAGRAM 1 — BRICK
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-title red">💀 Diagrama 1 — Cómo HIFIEC21_BRICKED brickeó el Echo Mini</div>
+  <div class="flow">
+
+    <!-- 1 -->
+    <div class="node n-start">
+      <div class="node-label">Entrada</div>
+      <strong>HIFIEC20.IMG</strong> abierto en EchoMiniCustomizer<br>
+      Tamaño: <code>56 MB</code> &nbsp;|&nbsp; Temas: <code>5</code> &nbsp;|&nbsp; <code>part5_size = 0x2B700D0</code> &nbsp;|&nbsp; <code>fw_end = 0x3530000</code>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 2 -->
+    <div class="node n-proc">
+      <div class="node-label">Acción del usuario</div>
+      Click en <strong>"Expandir a 6 temas"</strong> en la GUI
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 3 -->
+    <div class="node n-bug">
+      <div class="node-label">⚠ Bug 1 — Cálculo incorrecto de part5_size</div>
+      El código calculaba el nuevo tamaño de la parte 5 como:<br>
+      <div class="mono-block"><span class="del">new_p5_end = (meta_tabla_fin - part5_offset)</span>   <span class="cmt"># solo llega hasta el fin de la tabla de metadatos</span>
+</div>
+      Esta fórmula <strong>ignora</strong> que los datos de imagen de los temas B–E viven
+      <em>después</em> de la tabla → el valor calculado era <code>~22 MB</code> en lugar de <code>45 MB</code>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 4 -->
+    <div class="node n-err">
+      <div class="node-label">⚠ Bug 1 — Consecuencia: part5_size sobrescrito</div>
+      Sin la protección <code>max(calculado, original)</code> el código sobrescribía
+      <code>part5_size</code> con el valor incorrecto.<br>
+      En la versión que generó el archivo brickeado, un error adicional produjo:
+      <code>part5_size → 0x341CC3C (54 MB)</code> — mayor al real de 45 MB.<br>
+      La diferencia de ~9 MB era relleno de ceros vacíos al final del archivo.
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 5 -->
+    <div class="node n-err">
+      <div class="node-label">Propagación — _fix_integrity hereda el error</div>
+      <code>_fix_integrity()</code> usa <code>part5_size</code> para recalcular <code>fw_end</code>:<br>
+      <div class="mono-block">p5_end = part5_offset + part5_size   <span class="cmt"># 0x9B5998 + 0x341CC3C = 0x3DD25D4</span>
+fw_end = redondear_arriba(p5_end)     <span class="cmt"># → 0x3DE0000  (64.7 MB)  ← INCORRECTO</span>
+<span class="cmt"># correcto era: fw_end = 0x3530000 (55.6 MB)</span>
+</div>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 6 -->
+    <div class="node n-err">
+      <div class="node-label">Resultado — Archivo .IMG corrupto</div>
+      • El archivo creció de <code>56 MB → 65 MB</code> (9 MB de ceros vacíos añadidos)<br>
+      • El trailer <code>C6 18 C6 18</code> fue sobreescrito con <code>00 00 00 00</code> — ver detalle abajo<br>
+      • <code>fw_end = 0x3DE0000</code> apunta a una dirección fuera de la partición firmware<br>
+      • Archivo guardado como <strong>HIFIEC21.IMG</strong>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- TRAILER DETAIL -->
+    <div class="trailer-detail">
+      <div class="td-title">⚠ ¿Por qué importa el trailer <code style="color:#ffd966;">C6 18 C6 18</code>?</div>
+
+      <div class="td-row">
+        <span class="td-icon">📌</span>
+        <span class="td-text">
+          <strong>¿Qué es el trailer?</strong><br>
+          Los últimos 4 bytes de cualquier <code>.IMG</code> de Rockchip RKnano son un sello de
+          integridad — en este firmware vale <code>C6 18 C6 18</code> (patrón repetido de 2 bytes).
+          Algunos bootloaders lo usan como <em>comprobación rápida de formato</em>:
+          si los últimos 4 bytes son <code>00 00 00 00</code>, el archivo se considera truncado
+          o corrupto y se rechaza antes incluso de verificar el header.
+        </span>
+      </div>
+
+      <div class="td-row">
+        <span class="td-icon">🔍</span>
+        <span class="td-text">
+          <strong>¿Por qué se pierde al expandir el archivo?</strong><br>
+          <code>_fix_integrity()</code> extiende el archivo añadiendo ceros al final
+          <em>antes</em> de intentar preservar el trailer. La secuencia errónea era:
+        </span>
+      </div>
+      <div class="td-step">
+<span class="s-cmt">1. El archivo original termina en:  [ ... datos ... | C6 18 C6 18 ]  ← trailer correcto</span>
+<span class="s-bad">2. Se añaden 9 MB de ceros:         [ ... datos ... | C6 18 C6 18 | 00 00 ... 00 00 ]</span>
+<span class="s-bad">3. saved_trailer = data[-4:]         # lee los NUEVOS últimos 4 bytes → 00 00 00 00  ← ya tarde</span>
+<span class="s-bad">4. data[-4:] = saved_trailer         # restaura 00 00 00 00  → trailer perdido</span>
+      </div>
+
+      <div class="td-row" style="margin-top:12px;">
+        <span class="td-icon">💥</span>
+        <span class="td-text">
+          <strong>¿Qué consecuencia tiene en el dispositivo?</strong><br>
+          Junto con el <code>fw_end</code> erróneo, el bootloader del Echo Mini enfrenta
+          <em>dos</em> señales de firmware inválido simultáneamente:<br>
+          &nbsp;&nbsp;① <code>fw_end</code> fuera del rango de flash → no encuentra la copia del header<br>
+          &nbsp;&nbsp;② Trailer <code>00 00 00 00</code> → el archivo parece truncado o sin terminar<br>
+          Cualquiera de los dos sería suficiente para rechazar el firmware al arrancar.
+        </span>
+      </div>
+
+      <div class="td-row">
+        <span class="td-icon">✅</span>
+        <span class="td-text">
+          <strong>Cómo se corrigió:</strong><br>
+          El fix guarda el trailer <em>antes</em> de cualquier redimensionamiento:
+        </span>
+      </div>
+      <div class="td-step">
+<span class="s-ok">1. saved_trailer = bytes(data[-4:])   # guarda C6 18 C6 18 ANTES del resize</span>
+<span class="s-ok">2. Se añaden/recortan bytes según fw_end</span>
+<span class="s-ok">3. Se escribe copia del header en fw_end</span>
+<span class="s-ok">4. data[-4:] = saved_trailer           # restaura C6 18 C6 18 al final  ✓</span>
+      </div>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 7 -->
+    <div class="node n-proc">
+      <div class="node-label">Flash del dispositivo</div>
+      Usuario flashea HIFIEC21.IMG al Echo Mini mediante la herramienta de actualización
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 8 -->
+    <div class="node n-data">
+      <div class="node-label">Escritura en flash</div>
+      El dispositivo <strong>acepta y escribe</strong> los 65 MB en la NAND flash.<br>
+      Se apaga normalmente al terminar. ✓ (escritura completada)
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- Decision -->
+    <div class="diamond-wrap">
+      <div class="diamond">
+        Al reiniciar: bootloader lee <code>fw_end = 0x3DE0000</code> del header<br>
+        Busca la copia del header en esa dirección de flash<br>
+        ¿Existe datos válidos en <strong>64.7 MB</strong> de la partición?
+      </div>
+    </div>
+
+    <!-- Fork -->
+    <div class="fork" style="max-width:720px; margin: 0 auto;">
+      <!-- NO branch -->
+      <div>
+        <div class="fork-arrow fork-red" style="align-items:flex-end; padding-right:8px;">
+          <div class="fork-label" style="color:#e94560;">NO — excede el límite</div>
+          <div class="fork-line"></div>
+          <div class="fork-head"></div>
+        </div>
+        <div class="node n-err" style="font-size:0.82rem;">
+          Bootloader lee datos basura / vacíos<br>
+          <code>header_copia ≠ header_principal</code><br>
+          <strong>Verificación de integridad: FALLA</strong>
+        </div>
+      </div>
+      <!-- center -->
+      <div></div>
+      <!-- YES branch -->
+      <div>
+        <div class="fork-arrow fork-green" style="align-items:flex-start; padding-left:8px;">
+          <div class="fork-label" style="color:#2b9348;">SÍ — escritura fue OK</div>
+          <div class="fork-line"></div>
+          <div class="fork-head"></div>
+        </div>
+        <div class="node n-fix" style="font-size:0.82rem;">
+          La escritura en flash terminó bien<br>
+          (65 MB escritos sin errores)<br>
+          <em>pero esto no garantiza el arranque</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow red" style="max-width:360px;"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 9 -->
+    <div class="node n-brick">
+      <div class="node-label" style="color:#ff6b6b;">💀 BRICK</div>
+      <strong style="font-size:1rem; color:#ff4444;">Echo Mini completamente brickeado</strong><br>
+      Pantalla apagada — sin respuesta a botones — ninguna función disponible.<br>
+      <em style="color:#888;">El bootloader rechaza el firmware en cada intento de arranque.</em>
+    </div>
+
+    <div class="arrow" style="height:20px;"><div class="arrow-line"></div></div>
+
+    <div class="callout red">
+      CAUSA RAÍZ: <code>part5_size</code> calculado sin <code>max()</code>
+      → <code>fw_end</code> apunta fuera de la partición de flash
+      → verificación del bootloader falla → BRICK
+    </div>
+
+  </div><!-- /flow -->
+</div><!-- /diagram-section -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DIAGRAM 2 — FIX
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <div class="diagram-title green">✅ Diagrama 2 — Cómo se identificó y solucionó el error</div>
+  <div class="flow">
+
+    <!-- 1 -->
+    <div class="node n-start">
+      <div class="node-label">Punto de partida</div>
+      Comparación binaria byte a byte entre <strong>HIFIEC20.IMG</strong> y <strong>HIFIEC21_BRICKED.IMG</strong><br>
+      Se hallaron <code>41 halfwords</code> de diferencia en la sección de código (<code>0x0 – 0x9B5998</code>)
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 2 -->
+    <div class="node n-err">
+      <div class="node-label">Diferencias clave detectadas</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="th-check">Campo</th>
+            <th class="th-brk">HIFIEC21 Brickeado</th>
+            <th class="th-fix">HIFIEC20 Original</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-field"><code>part5_size</code> (0x150)</td>
+            <td class="td-bad"><code>0x341CC3C</code> — 54 MB ❌</td>
+            <td class="td-good"><code>0x2B700D0</code> — 45 MB ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field"><code>fw_end</code> (0x1F4)</td>
+            <td class="td-bad"><code>0x3DE0000</code> — 64.7 MB ❌</td>
+            <td class="td-good"><code>0x3530000</code> — 55.6 MB ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">Tamaño del archivo</td>
+            <td class="td-bad">65 MB ❌</td>
+            <td class="td-good">56 MB ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">Trailer (últimos 4 bytes)</td>
+            <td class="td-bad"><code>00 00 00 00</code> ❌</td>
+            <td class="td-good"><code>C6 18 C6 18</code> ✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- CHAIN DETAIL: part5_size → fw_end → file size -->
+    <div class="chain-detail">
+      <div class="cd-title">🔗 ¿Por qué importa cada uno de esos campos?</div>
+
+      <!-- part5_size -->
+      <div class="cd-item bad">
+        <div class="cd-field"><code>part5_size</code> — offset 0x150 en el header</div>
+        <div class="cd-desc">
+          <strong>¿Qué es?</strong> Le dice al dispositivo cuántos bytes ocupa la partición 5 (part5),
+          que contiene <em>todas las imágenes y recursos</em> del firmware:
+          fondos, iconos, animaciones de boot, carga y apagado.<br><br>
+          <strong>¿Por qué creció de 45 MB a 54 MB en el archivo brickeado?</strong><br>
+          El código antiguo llamaba a <code>_allocate_part5_space()</code> para cada una de las
+          <strong>306 imágenes de UI del nuevo tema F</strong>, copiando datos de píxeles reales al final
+          de part5. Esas imágenes existían porque el usuario las había importado previamente.
+          Resultado: se añadieron ~9 MB de datos de imagen reales, no ceros.
+        </div>
+        <div class="cd-images">
+          📊 <strong>Verificado por análisis binario del HIFIEC21_BRICKED:</strong><br>
+          &nbsp;&nbsp;• <strong>306 de 307 entradas de UI del tema F</strong> apuntaban a offsets
+            <em>más allá</em> del final de HIFIEC20 (región nueva)<br>
+          &nbsp;&nbsp;• El contenido en esas posiciones eran <strong>datos de imagen reales</strong>
+            (3.27 MB de 8 MB no eran ceros)<br>
+          &nbsp;&nbsp;• Resolución típica: <code>320×170 px</code> a 16-bit = 108,800 bytes por imagen<br>
+          &nbsp;&nbsp;• <code>data == ThemeA: False</code> → imágenes propias del tema F importadas por el usuario
+        </div>
+      </div>
+
+      <div class="cd-connector">↓ &nbsp; part5_size incorrecto se propaga directamente al cálculo de fw_end</div>
+
+      <!-- fw_end -->
+      <div class="cd-item bad">
+        <div class="cd-field"><code>fw_end</code> — offset 0x1F4 en el header</div>
+        <div class="cd-desc">
+          <strong>¿Qué es?</strong> Puntero que indica al bootloader <em>dónde leer la copia del header</em>
+          en la NAND flash. Al arrancar, el bootloader salta a esa dirección y compara los 512 bytes
+          que encuentra con el header principal — si no coinciden, el firmware es rechazado.<br><br>
+          <strong>¿Cómo lo calcula <code>_fix_integrity</code>?</strong>
+        </div>
+        <div class="cd-formula"><span class="f-cmt"># Con part5_size INCORRECTO (archivo brickeado):</span>
+<span class="f-key">p5_end</span> = part5_offset + part5_size  =  0x9B5998 + 0x341CC3C  =  <span class="f-bad">0x3DD25D4</span>
+<span class="f-key">fw_end</span> = redondear_64KB(p5_end)       =  <span class="f-bad">0x3DE0000  (64.7 MB)</span>  ← excede la flash
+
+<span class="f-cmt"># Con part5_size CORRECTO (archivo fijo):</span>
+<span class="f-key">p5_end</span> = part5_offset + part5_size  =  0x9B5998 + 0x2B700D0  =  <span class="f-ok">0x3526A68</span>
+<span class="f-key">fw_end</span> = redondear_64KB(p5_end)       =  <span class="f-ok">0x3530000  (55.6 MB)</span>  ✓</div>
+      </div>
+
+      <div class="cd-connector">↓ &nbsp; fw_end incorrecto obliga a extender el archivo más allá del límite del dispositivo</div>
+
+      <!-- file size -->
+      <div class="cd-item bad">
+        <div class="cd-field">Tamaño del archivo .IMG</div>
+        <div class="cd-desc">
+          <strong>¿Por qué importa el tamaño?</strong> El Echo Mini tiene una partición de firmware
+          en su NAND flash con capacidad fija. El HIFIEC20 original de 56 MB encajaba correctamente.
+          Con 65 MB ocurre la siguiente cadena de fallos al intentar arrancar:<br><br>
+          &nbsp;&nbsp;<span class="val-bad">①</span>&nbsp;
+          El archivo excede el espacio reservado para el firmware — los últimos 9 MB se escriben
+          fuera de la partición o se truncan.<br>
+          &nbsp;&nbsp;<span class="val-bad">②</span>&nbsp;
+          La copia del header en <code>0x3DE0000</code> (64.7 MB) queda en una dirección que el
+          bootloader no puede leer correctamente.<br>
+          &nbsp;&nbsp;<span class="val-bad">③</span>&nbsp;
+          Verificación de integridad: <strong>FALLA</strong> → dispositivo brickeado.<br><br>
+          <strong>¿Por qué el HIFIEC21 corregido sigue siendo 56 MB si el tema F tiene imágenes?</strong><br>
+          El código nuevo crea entradas de metadatos para el tema F que <em>referencian los mismos offsets
+          de imagen del tema A</em> sin copiar píxeles. El usuario puede después importar sus propias
+          imágenes para el tema F desde la GUI — esa importación sobreescribe los píxeles en su lugar
+          original sin agrandar el archivo.
+        </div>
+      </div>
+
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 3 -->
+    <div class="node n-bug">
+      <div class="node-label">Bug 1 identificado — part5_size nunca debe reducirse</div>
+      En <code>expand_theme_count()</code> la fórmula solo consideraba el fin de la tabla de metadatos,
+      ignorando datos de imagen que viven <em>después</em> de la tabla en esta versión del firmware.<br>
+      <div class="mono-block"><span class="del">new_p5_end = (meta_abs + new_count * 108) - part5_offset</span>
+<span class="cmt"># ↑ solo cubre hasta el fin de la tabla → puede truncar o sobrestimar</span>
+</div>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 4 fix -->
+    <div class="node n-fix">
+      <div class="node-label">✅ Fix Bug 1 — Protección con max()</div>
+      <div class="mono-block"><span class="ins">new_p5_end = max(</span>
+<span class="ins">    (meta_abs + new_count * 108) - part5_offset,   # tabla</span>
+<span class="ins">    self.part5_size                                  # original</span>
+<span class="ins">)</span>
+<span class="cmt"># part5_size NUNCA puede ser menor al valor original del firmware</span>
+</div>
+      También aplicado en <code>patch_for_themed_boots()</code> que tenía el mismo bug.
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 5 -->
+    <div class="node n-bug">
+      <div class="node-label">Bug 2 identificado — boot data de temas existentes sobreescrita</div>
+      El loop de expansión usaba <code>shared_r26</code> (imágenes de boot del <strong>tema A</strong>)
+      para <em>todos</em> los bloques de boot, incluyendo temas B–E que ya tenían
+      sus propias imágenes personalizadas de boot, carga y apagado almacenadas en offsets únicos.
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 6 fix -->
+    <div class="node n-fix">
+      <div class="node-label">✅ Fix Bug 2 — Preservar entradas propias de cada tema existente</div>
+      <div class="mono-block"><span class="cmt"># Para temas ya existentes (0 &lt; t_idx &lt; current_n):</span>
+<span class="del">new_r26.append(shared_r26[i])   # ← usaba siempre tema A</span>
+
+<span class="ins">src_idx = t_idx * new_blk + i   # ← lee la entrada real del tema</span>
+<span class="ins">new_r26.append(part5[r26_start + src_idx*16 : ...])</span>
+</div>
+      Cada tema B–E conserva sus imágenes únicas de boot/carga/apagado.
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 7 fix trailer -->
+    <div class="node n-fix">
+      <div class="node-label">✅ Fix adicional — Preservación del trailer</div>
+      <code>_fix_integrity()</code> ahora guarda los últimos 4 bytes <em>antes</em> de redimensionar
+      el archivo y los restaura al final:<br>
+      <div class="mono-block"><span class="ins">saved_trailer = bytes(data[-4:])   # guardar antes de resize</span>
+<span class="ins">... # resize + escribir copia de header</span>
+<span class="ins">data[-4:] = saved_trailer          # restaurar siempre</span>
+</div>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- 8 -->
+    <div class="node n-proc">
+      <div class="node-label">Generación del firmware corregido</div>
+      Nueva expansión ejecutada desde <strong>HIFIEC20.IMG</strong> con el código corregido.<br>
+      Guardado como <strong>HIFIEC21_FIXED.IMG</strong> → renombrado a <strong>HIFIEC21.IMG</strong>
+    </div>
+    <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- Verify table -->
+    <div class="node n-verify">
+      <div class="node-label">Verificación del resultado</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="th-check">Campo</th>
+            <th class="th-brk">HIFIEC21 Brickeado</th>
+            <th class="th-fix">HIFIEC21 Corregido</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-field">Tamaño archivo</td>
+            <td class="td-bad">65 MB ❌</td>
+            <td class="td-good">56 MB — igual a HIFIEC20 ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field"><code>part5_size</code></td>
+            <td class="td-bad"><code>0x341CC3C</code> ❌</td>
+            <td class="td-good"><code>0x2B700D0</code> ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field"><code>fw_end</code></td>
+            <td class="td-bad"><code>0x3DE0000</code> ❌</td>
+            <td class="td-good"><code>0x3530000</code> ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">Trailer</td>
+            <td class="td-bad"><code>00 00 00 00</code> ❌</td>
+            <td class="td-good"><code>C6 18 C6 18</code> ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">Copia del header en <code>fw_end</code></td>
+            <td class="td-bad">Inválida / vacía ❌</td>
+            <td class="td-good">Coincide con header principal ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field"><code>rock26_count</code></td>
+            <td class="td-bad">2244 (datos inconsistentes) ❌</td>
+            <td class="td-good">2244 — 6 × 374 entradas ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">Z_POWERON por tema</td>
+            <td class="td-bad">Inconsistente / vacío ❌</td>
+            <td class="td-good">40 frames por cada uno de los 6 temas ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">CHARGELEVEL por tema</td>
+            <td class="td-bad">Inconsistente ❌</td>
+            <td class="td-good">6 frames por cada uno de los 6 temas ✓</td>
+          </tr>
+          <tr>
+            <td class="td-field">POWEROFF por tema</td>
+            <td class="td-bad">Inconsistente ❌</td>
+            <td class="td-good">1 frame por cada uno de los 6 temas ✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="arrow green"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+    <!-- Result -->
+    <div class="node n-ok">
+      <div class="node-label">✅ Resultado final</div>
+      <strong>HIFIEC21.IMG corregido</strong> — listo para flashear al Echo Mini.<br>
+      • <code>fw_end</code> dentro del límite de la partición flash del dispositivo<br>
+      • Bootloader encontrará la copia del header en la dirección correcta<br>
+      • Los 6 temas tienen sus animaciones de boot, carga y apagado correctas<br>
+      • El firmware tiene el mismo tamaño que el original de 5 temas
+    </div>
+
+    <div class="arrow" style="height:20px;"><div class="arrow-line"></div></div>
+
+    <div class="callout green">
+      SOLUCIÓN: <code>max(calculado, original)</code> garantiza que <code>part5_size</code> nunca se reduce
+      → <code>fw_end</code> correcto → bootloader verifica OK → sin brick
+    </div>
+
+  </div><!-- /flow -->
+</div><!-- /diagram-section -->
+
+</body>
+</html>

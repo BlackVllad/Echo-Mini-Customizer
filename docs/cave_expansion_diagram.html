@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Diagrama: Expansión de Temas — Echo Mini</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0f0f1a;
+  color: #dde;
+  padding: 28px 20px 48px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ─── Títulos ─── */
+h1 {
+  text-align: center;
+  color: #7ec8e3;
+  font-size: 1.45rem;
+  margin-bottom: 4px;
+}
+.subtitle {
+  text-align: center;
+  color: #666;
+  font-size: 0.82rem;
+  margin-bottom: 32px;
+}
+
+/* ─── Sección ─── */
+.section {
+  margin-bottom: 32px;
+}
+.section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #556;
+  border-top: 1px solid #2a2a3a;
+  padding-top: 10px;
+  margin-bottom: 14px;
+}
+
+/* ─── Card genérico ─── */
+.card {
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 0.67rem;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+
+/* colores */
+.c-red    { background:#1e0909; border:1.5px solid #7a2020; }
+.c-red    .card-title { color:#ff7070; }
+.c-red    .badge { background:#4a1010; color:#ffaaaa; }
+
+.c-yellow { background:#1a1500; border:1.5px solid #6a5000; }
+.c-yellow .card-title { color:#ffe066; }
+.c-yellow .badge { background:#3a2c00; color:#ffe066; }
+
+.c-green  { background:#081808; border:1.5px solid #1e6030; }
+.c-green  .card-title { color:#60ee80; }
+.c-green  .badge { background:#0a2a14; color:#60ee80; }
+
+.c-purple { background:#130820; border:1.5px solid #5020a0; }
+.c-purple .card-title { color:#c090ff; }
+.c-purple .badge { background:#200840; color:#d0aaff; }
+
+.c-blue   { background:#060e1e; border:1.5px solid #1040a0; }
+.c-blue   .card-title { color:#60b8ff; }
+.c-blue   .badge { background:#0a2040; color:#90d0ff; }
+
+.c-teal   { background:#041616; border:1.5px solid #0a5050; }
+.c-teal   .card-title { color:#40e0d0; }
+.c-teal   .badge { background:#062828; color:#80f0e0; }
+
+.c-orange { background:#160b00; border:1.5px solid #704000; }
+.c-orange .card-title { color:#ffaa40; }
+.c-orange .badge { background:#362000; color:#ffcc80; }
+
+/* ─── Tabla ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-family: 'Consolas', monospace;
+  margin-top: 8px;
+}
+th {
+  background: #18182e;
+  color: #99aacc;
+  padding: 5px 10px;
+  border: 1px solid #2a2a44;
+  font-size: 0.72rem;
+}
+td {
+  padding: 5px 10px;
+  border: 1px solid #2a2a44;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.tr-red    { background:#1c0808; color:#ff9090; }
+.tr-green  { background:#081808; color:#80ee90; }
+.tr-purple { background:#130818; color:#c090ff; }
+.tr-gray   { background:#0e0e18; color:#888; }
+
+/* ─── Code block ─── */
+pre {
+  background: #0d0d1c;
+  border: 1px solid #2a2a40;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.76rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  font-family: 'Consolas', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 8px;
+}
+.hl-red    { color:#ff7070; }
+.hl-green  { color:#70ff90; }
+.hl-yellow { color:#ffe066; }
+.hl-gray   { color:#666; }
+.hl-blue   { color:#80c8ff; }
+.hl-purple { color:#c090ff; }
+
+/* ─── Grid de 2 columnas para bugs ─── */
+.two-col {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.two-col > .card {
+  flex: 1 1 420px;
+  margin-bottom: 0;
+}
+
+/* ─── Flecha vertical entre secciones ─── */
+.v-arrow {
+  text-align: center;
+  font-size: 1.4rem;
+  color: #445;
+  margin: -10px 0 6px;
+}
+
+/* ─── Flujo horizontal ─── */
+.flow-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 14px;
+  flex-wrap: nowrap;
+}
+.flow-box {
+  flex: 1;
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  text-align: center;
+  min-width: 0;
+}
+.flow-box b {
+  display: block;
+  font-size: 0.79rem;
+  margin-bottom: 4px;
+}
+.flow-sep {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: #445;
+}
+
+/* ─── Bloques de memoria horizontales ─── */
+.mem-blocks {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: nowrap;
+}
+.mem-block {
+  flex: 1;
+  border-radius: 8px;
+  padding: 8px 6px;
+  font-size: 0.71rem;
+  font-family: 'Consolas', monospace;
+  text-align: center;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+/* ─── Notas ─── */
+.note {
+  font-size: 0.75rem;
+  color: #777;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<h1>🔧 Expansión de Temas — Echo Mini Customizer</h1>
+<p class="subtitle">ARM Thumb2 code cave injection + expansión de tabla ROCK26 · echo_mini_customizer.py</p>
+
+
+<!-- ══════════════════════════════════════════════
+     §1  FIRMWARE ORIGINAL
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§1 · Estado original del firmware (HIFIEC20.IMG)</div>
+
+  <div class="card c-red">
+    <div class="card-title">📦 Dispatcher ARM antes del parche <span class="badge">ANTES</span></div>
+    <table>
+      <tr>
+        <th style="width:120px">Offset</th>
+        <th style="width:220px">Bytes / Instrucción</th>
+        <th>Descripción</th>
+      </tr>
+      <tr class="tr-red">
+        <td>0x3DF5A</td>
+        <td><code>43 28</code> → CMP R0, #67</td>
+        <td>Compara índice de recurso con 67 (umbral boot vs UI)</td>
+      </tr>
+      <tr class="tr-red">
+        <td>0x3DF5C</td>
+        <td><code>18 D3</code> → BCC +48</td>
+        <td>Si R0 &lt; 67: recurso compartido → saltar al final</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>0x3DF5E</td>
+        <td>LDR R2, [PC, #0x3C0]</td>
+        <td>Carga puntero a struct settings → RAM 0x0301D140</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>0x3DF60</td>
+        <td>LDRB.W R2, [R2, #0x34F]</td>
+        <td>Lee byte de índice de tema activo desde la struct</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>0x3DF64</td>
+        <td>CBZ R2, →done</td>
+        <td>Si tema A (índice = 0): no modificar R0, saltar a done</td>
+      </tr>
+      <tr class="tr-red">
+        <td>0x3DF66–0x3DF8D</td>
+        <td>4 × (CMP + IT EQ + ADDW + BEQ)</td>
+        <td><b>Límite hardcodeado a 5 temas (A–E).</b><br>
+            Valores: ADDW B=307 · C=614 · E=921 · D=1228</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>0x3DF8E</td>
+        <td><code>80 B2</code> → UXTH R0, R0</td>
+        <td>Trunca R0 a 16 bits → índice final de recurso</td>
+      </tr>
+      <tr class="tr-gray" style="color:#50c050">
+        <td>0x49CA8–0x9B5997</td>
+        <td><code>00 00 00 … 00</code></td>
+        <td>🟢 23 388 bytes de ceros libres — zona para code cave</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>0x9B5998+</td>
+        <td>Part5 / ROCK26</td>
+        <td>1 535 entradas · 5 temas × 307 recursos UI por tema</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     §2  BUGS CORREGIDOS
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§2 · Bugs corregidos en esta sesión (6 en total)</div>
+
+  <div class="two-col">
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 1 — ADDW usa <code>slot_idx</code> en vez de <code>hw_idx</code></div>
+      <pre><span class="hl-red"># ANTES — E y D intercambiados
+dispatch.append((hw_idx, new_blk * slot_idx))
+# Tema E (hw=4, slot=2) → ADDW = 2×374 = 748  ✗
+# Tema D (hw=3, slot=3) → ADDW = 3×374 = 1122 ✗</span>
+
+<span class="hl-green"># DESPUÉS — usa hardware index
+dispatch.append((hw_idx, new_blk * hw_idx))
+# Tema E → hw=4 × 374 = 1496 ✓
+# Tema D → hw=3 × 374 = 1122 ✓</span></pre>
+    </div>
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 2 — <code>old_start</code> calcula offset incorrecto de UI</div>
+      <pre><span class="hl-red"># ANTES
+old_start = SHARED + t_idx * (new_blk - SHARED)
+# Tema B (t_idx=1): 67 + 1×307 = 374
+# Pero UI de B empieza en 374+67 = 441  ✗</span>
+
+<span class="hl-green"># DESPUÉS
+old_start = t_idx * new_blk + SHARED
+# Tema B: 1×374 + 67 = 441 ✓</span></pre>
+    </div>
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 3 — Nuevos temas usaban placeholder vacío</div>
+      <pre><span class="hl-red"># ANTES — placeholder genérico sin nombre útil
+new_r26.append(shared_r26[0])
+new_meta.append(shared_meta[0])</span>
+
+<span class="hl-green"># DESPUÉS — copia recurso del tema A con prefijo correcto
+a_idx  = SHARED + i              # posición equivalente en tema A
+new_name = f"{letter}_{orig_name}"   # ej. "F_MAINBG.BMP"
+# → Import Theme puede encontrar y reemplazar el recurso</span></pre>
+    </div>
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 4 — <code>_find_code_cave</code> retornaba dirección sin alinear</div>
+      <pre><span class="hl-red"># ANTES — podía retornar dirección impar o no múltiplo de 4
+return cave_start          # ej. 0x13D8E (alignment=2)
+# LDR PC-rel offset = 62 (62 % 4 ≠ 0) → AssertionError</span>
+
+<span class="hl-green"># DESPUÉS — fuerza alineación a 4 bytes
+aligned = (cave_start + 3) & ~3   # 0x13D8E → 0x13D90
+if cave_start + cave_len - aligned >= min_size:
+    return aligned   # ✓</span></pre>
+    </div>
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 5 — <code>detect_patch_info()</code> confundía la cave con el CMP original</div>
+      <pre><span class="hl-gray"># Problema: la cave TAMBIÉN empieza con CMP R0,#67 (0x2843)
+# → detect_patch_info encontraba la cave en 0x13D90
+#   antes que el B.W real en 0x3DF5A
+# → devolvía is_patched=False y new_blk=441 (incorrecto)</span>
+
+<span class="hl-green"># DESPUÉS — distingue cave por valor del primer ADDW
+is_cave = (cmp_val == 0x2843 and addw_values[0] >= NEW_BLK)
+is_patched = (cmp_val == 0x2800) or is_cave</span></pre>
+    </div>
+
+    <div class="card c-yellow">
+      <div class="card-title">🐛 Bug 6 — <code>is_cave_dispatched()</code> siempre devolvía False</div>
+      <pre><span class="hl-red"># ANTES — buscaba B.W en la dirección devuelta por
+# detect_patch_info(), que apuntaba a la cave (0x13D90)
+# donde hay CMP R0,#67, no B.W → siempre False</span>
+
+<span class="hl-green"># DESPUÉS — usa el flag is_cave directamente
+def is_cave_dispatched(self):
+    info = self.detect_patch_info()
+    return info.get('is_cave', False)</span></pre>
+    </div>
+
+  </div><!-- /two-col -->
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     §3  FLUJO expand_theme_count()
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§3 · Flujo de expand_theme_count(n) — paso a paso</div>
+
+  <div class="flow-row">
+    <div class="flow-box c-blue" style="border-radius:8px; border:1.5px solid #1040a0;">
+      <b>① Detectar estado</b>
+      <code>detect_patch_info()</code><br>
+      ¿Boot patch aplicado?<br>
+      ¿Cave ya inyectada?<br>
+      ¿n &gt; temas actuales?
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-blue" style="border-radius:8px; border:1.5px solid #1040a0;">
+      <b>② Boot patch (si falta)</b>
+      <code>patch_for_themed_boots()</code><br>
+      CMP R0,#67 → CMP R0,#0<br>
+      ADDW: 307→374 × {1,2,4,3}
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-purple" style="border-radius:8px; border:1.5px solid #5020a0;">
+      <b>③ Localizar cave</b>
+      <code>_find_code_cave()</code><br>
+      Scan 0x10000→Part5<br>
+      Busca ≥256 bytes cero<br>
+      Alinea a múltiplo de 4
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-purple" style="border-radius:8px; border:1.5px solid #5020a0;">
+      <b>④ Construir bytecode</b>
+      <code>_build_cave_code()</code><br>
+      Preamble 12 bytes<br>
+      N checks × 10 bytes<br>
+      UXTH + B.W + pool
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-green" style="border-radius:8px; border:1.5px solid #1e6030;">
+      <b>⑤ Inyectar cave</b>
+      Escribe bytecode en<br>
+      cave_addr (0x13D90)<br>
+      Escribe B.W en<br>
+      0x3DF5A → cave
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-teal" style="border-radius:8px; border:1.5px solid #0a5050;">
+      <b>⑥ Expandir ROCK26</b>
+      N×374 entradas<br>
+      Renombra boot entries<br>
+      con prefijo T_X_<br>
+      UI nuevas con X_…
+    </div>
+    <div class="flow-sep">→</div>
+    <div class="flow-box c-teal" style="border-radius:8px; border:1.5px solid #0a5050;">
+      <b>⑦ Finalizar</b>
+      <code>_fix_integrity()</code><br>
+      Actualiza fw_end<br>
+      Copia header a fw_end<br>
+      <code>_parse()</code> recarga
+    </div>
+  </div>
+
+  <p class="note">
+    💾 Los cambios son <b>en memoria</b> hasta que el usuario presione <b>Save Firmware</b> en la barra de herramientas.
+    El botón <b>➕ Expand Themes</b> también activa auto-expansión al importar un tema en un slot &gt; capacidad actual.
+  </p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     §4  ESTRUCTURA DE LA CAVE
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§4 · Estructura del code cave (72 bytes · 6 temas · @ 0x13D90)</div>
+
+  <div class="card c-purple">
+    <div class="card-title">🏕️ Bytecode ARM Thumb2 inyectado en la zona de ceros</div>
+    <table>
+      <tr>
+        <th style="width:75px">Offset</th>
+        <th style="width:240px">Bytes (little-endian)</th>
+        <th style="width:240px">Instrucción</th>
+        <th>Propósito</th>
+      </tr>
+      <tr class="tr-purple">
+        <td>+0</td>
+        <td><code>43 28</code></td>
+        <td>CMP R0, #67</td>
+        <td>¿El recurso es de UI? (≥ 67 = sí)</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+2</td>
+        <td><code>1D D3</code></td>
+        <td>BCC → no_dispatch (+58)</td>
+        <td>Si R0 &lt; 67: recurso compartido, ir al B.W de retorno</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+4</td>
+        <td><code>0F 4A</code></td>
+        <td>LDR R2, [PC, #0x3C]</td>
+        <td>Carga puntero al pool (+68) → valor 0x0301D140</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+6</td>
+        <td><code>92 F8 4F 23</code></td>
+        <td>LDRB.W R2, [R2, #0x34F]</td>
+        <td>Lee byte del índice de tema activo desde RAM</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+10</td>
+        <td><code>C2 B1</code></td>
+        <td>CBZ R2, uxth (+48)</td>
+        <td>Si tema A (índice=0): no aplicar offset, saltar a UXTH</td>
+      </tr>
+      <tr class="tr-green">
+        <td>+12</td>
+        <td><code>01 2A 08 BF 00 F2 76 10 13 D0</code></td>
+        <td>CMP #1; IT EQ; ADDW R0,#374; BEQ uxth</td>
+        <td>Tema B → offset bloque 1 (hw_idx=1 × 374)</td>
+      </tr>
+      <tr class="tr-green">
+        <td>+22</td>
+        <td><code>02 2A 08 BF 00 F2 EC 20 0E D0</code></td>
+        <td>CMP #2; IT EQ; ADDW R0,#748; BEQ uxth</td>
+        <td>Tema C → offset bloque 2 (hw_idx=2 × 374)</td>
+      </tr>
+      <tr class="tr-green">
+        <td>+32</td>
+        <td><code>04 2A 08 BF 00 F2 D8 50 09 D0</code></td>
+        <td>CMP #4; IT EQ; ADDW R0,#1496; BEQ uxth</td>
+        <td>Tema E → offset bloque 4 (hw_idx=4 × 374)</td>
+      </tr>
+      <tr class="tr-green">
+        <td>+42</td>
+        <td><code>03 2A 08 BF 00 F2 62 40 04 D0</code></td>
+        <td>CMP #3; IT EQ; ADDW R0,#1122; BEQ uxth</td>
+        <td>Tema D → offset bloque 3 (hw_idx=3 × 374)</td>
+      </tr>
+      <tr class="tr-green" style="border-left:2px solid #c090ff;">
+        <td>+52</td>
+        <td><code>05 2A 08 BF 00 F2 4E 70 FF D0</code></td>
+        <td>CMP #5; IT EQ; ADDW R0,#1870; BNE uxth</td>
+        <td>🆕 Tema F → offset bloque 5 (hw_idx=5 × 374)</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+62 <i>(uxth)</i></td>
+        <td><code>80 B2</code></td>
+        <td>UXTH R0, R0</td>
+        <td>Trunca índice a 16 bits</td>
+      </tr>
+      <tr class="tr-purple">
+        <td>+64 <i>(no_disp)</i></td>
+        <td><code>D5 F7 19 BF</code></td>
+        <td>B.W → 0x3DF90</td>
+        <td>Retorna al flujo original del firmware</td>
+      </tr>
+      <tr class="tr-gray">
+        <td>+68 <i>(pool)</i></td>
+        <td><code>40 D1 01 03</code></td>
+        <td>.word 0x0301D140</td>
+        <td>Puntero literal a struct settings en RAM</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     §5  ESTADO FINAL
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§5 · Estado final del firmware expandido (6 temas)</div>
+
+  <div class="card c-green">
+    <div class="card-title">✅ Comparativa antes / después <span class="badge">DESPUÉS</span></div>
+    <table>
+      <tr>
+        <th style="width:140px">Elemento</th>
+        <th>Antes</th>
+        <th>Después</th>
+      </tr>
+      <tr>
+        <td>0x3DF5A–5D</td>
+        <td class="tr-red"><code>43 28 18 D3</code><br>CMP R0,#67 + BCC</td>
+        <td class="tr-green"><code>D5 F7 19 BF</code><br>B.W → 0x13D90 (cave)</td>
+      </tr>
+      <tr>
+        <td>0x13D90–D7</td>
+        <td class="tr-gray"><code>00 00 … 00</code> (72 bytes de ceros)</td>
+        <td class="tr-purple">Cave Thumb2: CMP+BCC+LDR+LDRB.W+CBZ + 5×check + UXTH + B.W + pool</td>
+      </tr>
+      <tr>
+        <td>ROCK26 count</td>
+        <td class="tr-red">1 535 entradas</td>
+        <td class="tr-green">2 244 entradas &nbsp;(6 × 374)</td>
+      </tr>
+      <tr>
+        <td>Temas activos</td>
+        <td class="tr-red">A · B · C · D · E</td>
+        <td class="tr-green">A · B · C · D · E · <b>F</b> ✨</td>
+      </tr>
+      <tr>
+        <td>Entradas tema F</td>
+        <td class="tr-gray">—</td>
+        <td class="tr-green">
+          Boot: <code>T_F_POWERON0.BMP</code> … (67 entries)<br>
+          UI: <code>F_MAINBG.BMP</code>, <code>F_PLAYICON.BMP</code> … (307 entries)
+        </td>
+      </tr>
+    </table>
+
+    <p style="color:#60ee80; font-size:0.8rem; font-weight:700; margin:14px 0 6px;">
+      Layout de bloques en la tabla ROCK26 expandida:
+    </p>
+
+    <div class="mem-blocks">
+      <div class="mem-block" style="background:#081808; border:1px solid #1e6030; color:#70ee80;">
+        <b>Bloque A</b><br>
+        idx 0–373<br>
+        67 boot<br>307 UI
+      </div>
+      <div class="mem-block" style="background:#081808; border:1px solid #1e6030; color:#70ee80;">
+        <b>Bloque B</b><br>
+        idx 374–747<br>
+        67 boot<br>307 UI
+      </div>
+      <div class="mem-block" style="background:#081808; border:1px solid #1e6030; color:#70ee80;">
+        <b>Bloque C</b><br>
+        idx 748–1121<br>
+        67 boot<br>307 UI
+      </div>
+      <div class="mem-block" style="background:#081808; border:1px solid #1e6030; color:#70ee80;">
+        <b>Bloque D</b><br>
+        idx 1122–1495<br>
+        67 boot<br>307 UI
+      </div>
+      <div class="mem-block" style="background:#081808; border:1px solid #1e6030; color:#70ee80;">
+        <b>Bloque E</b><br>
+        idx 1496–1869<br>
+        67 boot<br>307 UI
+      </div>
+      <div class="mem-block" style="background:#1a0830; border:2px dashed #7030c0; color:#c090ff;">
+        <b>Bloque F ✨</b><br>
+        idx 1870–2243<br>
+        67 boot<br>307 UI
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     §6  CONSTANTES Y LÍMITES
+══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">§6 · Constantes clave y límites</div>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+
+    <div class="card c-orange" style="flex:1 1 420px;">
+      <div class="card-title">📏 Constantes del firmware</div>
+      <table>
+        <tr><th>Nombre</th><th>Valor</th><th>Significado</th></tr>
+        <tr><td>SHARED</td><td>67</td><td>Frames de boot por tema</td></tr>
+        <tr><td>OLD_BLK</td><td>307</td><td>Recursos UI por tema (sin boot patch)</td></tr>
+        <tr><td>NEW_BLK</td><td>374</td><td>Total recursos por tema (307+67)</td></tr>
+        <tr><td>Settings RAM</td><td>0x0301D140</td><td>Struct de config del dispositivo</td></tr>
+        <tr><td>LDRB.W offset</td><td>0x34F</td><td>Byte del índice de tema en la struct</td></tr>
+        <tr><td>Part5 offset</td><td>0x9B5998</td><td>Inicio tabla ROCK26 en el .IMG</td></tr>
+        <tr><td>Cave offset</td><td>0x13D90</td><td>Zona libre donde se inyecta la cave</td></tr>
+      </table>
+    </div>
+
+    <div class="card c-teal" style="flex:1 1 420px;">
+      <div class="card-title">⚠️ Límites de expansión</div>
+      <table>
+        <tr><th>Condición</th><th>Valor</th></tr>
+        <tr>
+          <td>Máximo de temas</td>
+          <td><b>11 (A–K)</b><br>
+          ADDW imm12 ≤ 4095<br>
+          10×374 = 3740 ✓ · 11×374 = 4114 ✗</td>
+        </tr>
+        <tr>
+          <td>Tamaño cave (11 temas)</td>
+          <td>12 + 10×10 + 2 + 4 + 4 = 122 bytes<br>
+          Zona disponible: 23 388 bytes ✓</td>
+        </tr>
+        <tr>
+          <td>CBZ range (max 11 temas)</td>
+          <td>Offset = 10×10+2 = 102 bytes<br>
+          Límite CBZ = 126 bytes ✓</td>
+        </tr>
+        <tr>
+          <td>Re-expansión (ej. 6→7)</td>
+          <td>Funciona con doble salto (cave→cave→ret).
+          Limitación conocida, no crítica.</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<p style="text-align:center; color:#333; font-size:0.72rem; margin-top:16px;">
+  EchoMiniCustomizer · echo_mini_customizer.py · Expansión code cave ARM Thumb2
+</p>
+
+</body>
+</html>

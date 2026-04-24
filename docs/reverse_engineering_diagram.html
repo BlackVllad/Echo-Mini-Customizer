@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Echo Mini — Ingeniería Inversa del Firmware</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace; font-size: 13px; padding: 24px; }
+  h1 { color: #58a6ff; font-size: 22px; margin-bottom: 6px; }
+  h2 { color: #79c0ff; font-size: 16px; margin: 28px 0 10px 0; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
+  h3 { color: #a5d6ff; font-size: 13px; margin: 14px 0 6px 0; }
+  p, li { color: #8b949e; line-height: 1.55; }
+  li { margin: 2px 0 2px 16px; }
+  .subtitle { color: #8b949e; font-size: 12px; margin-bottom: 30px; }
+  .section { margin-bottom: 40px; }
+
+  /* ── Binary map ── */
+  .file-map { display: flex; flex-direction: column; gap: 0; width: 100%; max-width: 900px; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+  .map-row { display: grid; grid-template-columns: 120px 120px 1fr; border-bottom: 1px solid #21262d; }
+  .map-row:last-child { border-bottom: none; }
+  .map-cell { padding: 5px 10px; font-size: 12px; }
+  .map-off  { color: #d2a679; background: #161b22; }
+  .map-size { color: #79c0ff; background: #0d1117; }
+  .map-desc { color: #c9d1d9; background: #0d1117; }
+  .map-head { background: #21262d !important; color: #58a6ff !important; font-weight: bold; }
+  .bar-container { width: 100%; max-width: 900px; height: 28px; display: flex; margin: 8px 0 14px 0; border-radius: 4px; overflow: hidden; border: 1px solid #30363d; }
+  .bar-seg { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; }
+  .bar-hdr  { background: #1f6feb; color: #fff; }
+  .bar-code { background: #388bfd; color: #000; }
+  .bar-cave { background: #d29922; color: #000; }
+  .bar-disp { background: #f85149; color: #fff; }
+  .bar-pad  { background: #21262d; color: #8b949e; }
+  .bar-p5   { background: #3fb950; color: #000; }
+  .bar-end  { background: #8957e5; color: #fff; }
+
+  /* ── Field tables ── */
+  table { width: 100%; max-width: 900px; border-collapse: collapse; margin: 8px 0; }
+  th { background: #21262d; color: #79c0ff; padding: 6px 10px; text-align: left; font-size: 12px; border: 1px solid #30363d; }
+  td { padding: 5px 10px; font-size: 12px; border: 1px solid #21262d; vertical-align: top; }
+  tr:nth-child(even) td { background: #0d1117; }
+  tr:nth-child(odd)  td { background: #161b22; }
+  .td-off  { color: #d2a679; }
+  .td-val  { color: #7ee787; font-family: monospace; }
+  .td-name { color: #79c0ff; }
+  .td-note { color: #8b949e; }
+  .td-warn { color: #f85149; }
+  .td-ok   { color: #3fb950; }
+
+  /* ── Disassembly ── */
+  .disasm { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 18px; max-width: 900px; overflow-x: auto; }
+  .disasm-row { display: grid; grid-template-columns: 90px 100px 200px 1fr; margin: 2px 0; align-items: baseline; }
+  .d-off  { color: #d2a679; }
+  .d-hex  { color: #79c0ff; }
+  .d-asm  { color: #7ee787; }
+  .d-cmt  { color: #6a737d; font-style: italic; }
+  .d-sep  { border-top: 1px dashed #21262d; margin: 6px 0; }
+  .d-lbl  { color: #ffa657; font-size: 11px; margin: 4px 0 2px 0; }
+  .d-patch{ background: #2d1b00; border-left: 3px solid #d29922; padding-left: 8px; margin: 2px 0; }
+  .d-cave { background: #0d2117; border-left: 3px solid #3fb950; padding-left: 8px; margin: 2px 0; }
+  .d-orig { background: #1a0d0d; border-left: 3px solid #f85149; padding-left: 8px; margin: 2px 0; }
+
+  /* ── Struct boxes ── */
+  .struct-box { background: #161b22; border: 1px solid #30363d; border-radius: 6px; max-width: 900px; overflow: hidden; margin: 8px 0; }
+  .struct-title { background: #21262d; color: #79c0ff; padding: 6px 14px; font-weight: bold; font-size: 12px; }
+  .struct-row { display: grid; gap: 0; border-bottom: 1px solid #21262d; }
+  .struct-row:last-child { border-bottom: none; }
+  .s2 { grid-template-columns: 80px 140px 1fr; }
+  .s3 { grid-template-columns: 80px 100px 160px 1fr; }
+  .s4 { grid-template-columns: 70px 90px 90px 140px 1fr; }
+  .s-cell { padding: 4px 10px; font-size: 12px; }
+  .s-off  { color: #d2a679; background: #0d1117; }
+  .s-sz   { color: #79c0ff; }
+  .s-name { color: #c9d1d9; }
+  .s-val  { color: #7ee787; font-family: monospace; }
+  .s-note { color: #8b949e; }
+
+  /* ── Before/After ── */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px; margin: 8px 0; }
+  .cmp-box { background: #161b22; border-radius: 6px; overflow: hidden; border: 1px solid #30363d; }
+  .cmp-title { padding: 6px 12px; font-weight: bold; font-size: 12px; }
+  .cmp-orig  { background: #2d0f0f; border-color: #f85149; color: #f85149; }
+  .cmp-patch { background: #0f2d1a; border-color: #3fb950; color: #3fb950; }
+  .cmp-body  { padding: 10px 12px; }
+
+  /* ── Encoding reference ── */
+  .enc-box { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 16px; max-width: 900px; margin: 8px 0; }
+  .enc-title { color: #ffa657; font-weight: bold; font-size: 12px; margin-bottom: 8px; }
+  .enc-row { margin: 6px 0; }
+  .enc-mnem { color: #79c0ff; display: inline-block; width: 110px; }
+  .enc-bits { color: #d2a679; font-family: monospace; font-size: 11px; display: inline-block; width: 280px; }
+  .enc-note { color: #8b949e; font-size: 11px; }
+  .enc-ex   { color: #7ee787; font-size: 11px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0 16px 0; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .leg-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+  /* ── Callout boxes ── */
+  .callout { border-left: 3px solid; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 10px 0; max-width: 900px; }
+  .callout-blue { border-color: #388bfd; background: #0d1930; }
+  .callout-yellow { border-color: #d29922; background: #1a1500; }
+  .callout-green  { border-color: #3fb950; background: #0d1a10; }
+  .callout-red    { border-color: #f85149; background: #1a0d0d; }
+  .callout p { color: #c9d1d9; font-size: 12px; line-height: 1.6; }
+  .callout strong { color: #e6edf3; }
+
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: bold; margin: 0 3px; }
+  .tag-orig  { background: #f85149; color: #fff; }
+  .tag-patch { background: #3fb950; color: #000; }
+  .tag-cave  { background: #d29922; color: #000; }
+  .tag-v32   { background: #388bfd; color: #fff; }
+  .tag-v21   { background: #8957e5; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>🔬 Echo Mini — Ingeniería Inversa del Firmware</h1>
+<p class="subtitle">Análisis binario completo del archivo HIFIEC20.IMG (Rockchip RKNano) · ROM 32-bit Thumb2 · Firmware V3.2.0</p>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 1 -->
+<div class="section">
+<h2>§1 — Mapa del archivo binario (.IMG)</h2>
+<p style="margin-bottom:10px;">El firmware es un binario flat (sin encabezado ELF). La CPU carga el código desde la flash mapeada directamente a dirección virtual <code>0xFF800000</code>.</p>
+
+<div class="bar-container">
+  <div class="bar-seg bar-hdr"  style="width:1%">HDR</div>
+  <div class="bar-seg bar-code" style="width:17%">CÓDIGO ARM (0x200–0x9B5997)</div>
+  <div class="bar-seg bar-cave" style="width:1%" title="Cave a 0x13D90">CAVE</div>
+  <div class="bar-seg bar-disp" style="width:1%" title="Dispatch a 0x3DF5A">DSP</div>
+  <div class="bar-seg bar-pad"  style="width:1%">···</div>
+  <div class="bar-seg bar-p5"   style="width:60%">PART5 — Recursos ROCK26 (0x9B5998–fin)</div>
+  <div class="bar-seg bar-end"  style="width:1%">END</div>
+</div>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#1f6feb"></div>Header (0x000–0x1FF)</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#388bfd"></div>Código ARM Thumb2</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#d29922"></div>Code Cave (0x13D90, 72 bytes)</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f85149"></div>Dispatch de temas (0x3DF5A)</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#3fb950"></div>Part5 — imágenes ROCK26</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#8957e5"></div>Header copy + trailer (fw_end)</div>
+</div>
+
+<div class="file-map">
+  <div class="map-row">
+    <div class="map-cell map-off  map-head">Offset</div>
+    <div class="map-cell map-size map-head">Tamaño</div>
+    <div class="map-cell map-desc map-head">Contenido</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x00000000</div>
+    <div class="map-cell map-size">512 B</div>
+    <div class="map-cell map-desc">🔷 <strong>Header principal</strong> — campos de versión, offsets de particiones, fw_end, firma "RKnanoFW"</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x00000200</div>
+    <div class="map-cell map-size">~10 MB</div>
+    <div class="map-cell map-desc">🔵 <strong>Sección de código ARM Thumb2</strong> — firmware principal (IRQ handlers, UI, decodificador, drivers)</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x00013D90</div>
+    <div class="map-cell map-size">72 B</div>
+    <div class="map-cell map-desc">🟡 <strong>Code Cave</strong> — región de ceros utilizada para inyectar el dispatch de 5+ temas (virt: 0xFF813D90)</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x0003DF5A</div>
+    <div class="map-cell map-size">56 B orig.</div>
+    <div class="map-cell map-desc">🔴 <strong>Dispatch de temas ARM</strong> — CMP/ADDW para calcular el índice de imagen según tema activo</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x0003E320</div>
+    <div class="map-cell map-size">4 B</div>
+    <div class="map-cell map-desc">📌 <strong>Pool literal LDR</strong> — contiene <code>0x0301D140</code> (puntero al struct de settings en RAM)</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">0x009B5998</div>
+    <div class="map-cell map-size">45–54 MB</div>
+    <div class="map-cell map-desc">🟢 <strong>PART5 — Recursos gráficos ROCK26</strong> — encabezado ROCK26IMAGERES + tabla de entradas + imágenes BMP</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">fw_end (var.)</div>
+    <div class="map-cell map-size">512 B</div>
+    <div class="map-cell map-desc">🟣 <strong>Copia del header</strong> — bootloader verifica que coincida con header en 0x0 (firma de integridad)</div>
+  </div>
+  <div class="map-row">
+    <div class="map-cell map-off">EOF − 4</div>
+    <div class="map-cell map-size">4 B</div>
+    <div class="map-cell map-desc">🔮 <strong>Trailer</strong> — <code>C6 18 C6 18</code> — checksum final que el bootloader verifica antes de aceptar el firmware</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 2 -->
+<div class="section">
+<h2>§2 — Campos del Header (0x000–0x1FF)</h2>
+
+<table>
+  <tr><th>Offset</th><th>Tamaño</th><th>Nombre</th><th>Valor (HIFIEC20 orig.)</th><th>Descripción</th></tr>
+  <tr>
+    <td class="td-off">0x000</td><td>4 B</td>
+    <td class="td-name">magic/version</td>
+    <td class="td-val">0x02082026</td>
+    <td class="td-note">Versión del firmware (hardcoded)</td>
+  </tr>
+  <tr>
+    <td class="td-off">0x14C</td><td>4 B</td>
+    <td class="td-name">part5_offset</td>
+    <td class="td-val">0x009B5998</td>
+    <td class="td-note">Offset absoluto donde comienza PART5 (recursos ROCK26)</td>
+  </tr>
+  <tr>
+    <td class="td-off">0x150</td><td>4 B</td>
+    <td class="td-name">part5_size</td>
+    <td class="td-val">0x02B700D0 (45 MB)</td>
+    <td class="td-note">Tamaño de PART5. <span class="td-warn">CRÍTICO:</span> debe permanecer ≤ original. Si crece incorrectamente, fw_end excede la flash → brick</td>
+  </tr>
+  <tr>
+    <td class="td-off">0x1F4</td><td>4 B</td>
+    <td class="td-name">fw_end</td>
+    <td class="td-val">0x03530000 (55.6 MB)</td>
+    <td class="td-note">Dirección donde el bootloader espera encontrar la copia del header. <span class="td-warn">Si excede la flash (≈57 MB) → brick</span></td>
+  </tr>
+  <tr>
+    <td class="td-off">0x1F8</td><td>8 B</td>
+    <td class="td-name">signature</td>
+    <td class="td-val"><code>52 4B 6E 61 6E 6F 46 57</code></td>
+    <td class="td-note">Texto ASCII: <strong>"RKnanoFW"</strong> — firma del fabricante Rockchip</td>
+  </tr>
+  <tr>
+    <td class="td-off">fw_end</td><td>512 B</td>
+    <td class="td-name">header_copy</td>
+    <td class="td-note">copia de 0x0</td>
+    <td class="td-note">Copia exacta del header completo. El bootloader la verifica en el segundo stage</td>
+  </tr>
+  <tr>
+    <td class="td-off">EOF − 4</td><td>4 B</td>
+    <td class="td-name">trailer</td>
+    <td class="td-val">C6 18 C6 18</td>
+    <td class="td-note">Secuencia mágica al final del archivo. Si se sobreescribe con 00 00 00 00 → el bootloader rechaza el firmware</td>
+  </tr>
+</table>
+
+<div class="callout callout-yellow">
+  <p><strong>⚠ Por qué se pierde el trailer:</strong><br>
+  La función <code>_fix_integrity()</code> original leía el trailer con <code>data[-4:]</code> <em>después</em> de extender el archivo con ceros.
+  Esto hacía que <code>saved_trailer = b'\x00\x00\x00\x00'</code>. El fix correcto: leer el trailer al inicio de la función, <em>antes</em> de cualquier resize.</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 3 -->
+<div class="section">
+<h2>§3 — Estructura de PART5 (recursos gráficos)</h2>
+
+<h3>3.1 — Encabezado ROCK26IMAGERES (14 bytes de magic + 18 bytes de header)</h3>
+<div class="struct-box">
+  <div class="struct-title">ROCK26IMAGERES header — at part5_offset (file 0x9B5998)</div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+0</div><div class="s-cell s-sz">14 B</div>
+    <div class="s-cell s-name">magic</div>
+    <div class="s-cell s-note">Texto ASCII: <code>"ROCK26IMAGERES"</code> — identificador de la partición gráfica</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+14</div><div class="s-cell s-sz">2 B</div>
+    <div class="s-cell s-name">padding</div>
+    <div class="s-cell s-note"><code>00 00</code></div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+16</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">rock26_count</div>
+    <div class="s-cell s-note">Número total de entradas de 16 bytes que siguen (HIFIEC20-orig: 1602 · V3.2.0: 1870 · HIFIEC21: 2244)</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+20</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">unknown_A</div>
+    <div class="s-cell s-note">Campo desconocido (siempre 0 en samples analizados)</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+24</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">unknown_B</div>
+    <div class="s-cell s-note">Campo desconocido</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+32</div><div class="s-cell s-sz">16 × N</div>
+    <div class="s-cell s-name">entries[]</div>
+    <div class="s-cell s-note">Array de N entradas de 16 bytes (ver §3.2)</div>
+  </div>
+</div>
+
+<h3>3.2 — Entrada ROCK26 (16 bytes cada una)</h3>
+<div class="struct-box">
+  <div class="struct-title">struct rock26_entry — 16 bytes — primera entrada ejemplo: <code>40 01 AA 00 00 00 00 00 00 A9 01 00 F4 FB 60 02</code></div>
+  <div class="struct-row s4">
+    <div class="s-cell s-off">+0</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">flags/type</div>
+    <div class="s-cell s-val">40 01 AA 00</div>
+    <div class="s-cell s-note">Indicadores del recurso (tipo, compresión, formato)</div>
+  </div>
+  <div class="struct-row s4">
+    <div class="s-cell s-off">+4</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">unknown</div>
+    <div class="s-cell s-val">00 00 00 00</div>
+    <div class="s-cell s-note">Campo no identificado</div>
+  </div>
+  <div class="struct-row s4">
+    <div class="s-cell s-off">+8</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">size_in_part5?</div>
+    <div class="s-cell s-val">00 A9 01 00</div>
+    <div class="s-cell s-note">Posiblemente tamaño del recurso en bytes</div>
+  </div>
+  <div class="struct-row s4">
+    <div class="s-cell s-off">+12</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">image_offset</div>
+    <div class="s-cell s-val">F4 FB 60 02</div>
+    <div class="s-cell s-note">Offset de la imagen <em>dentro de PART5</em> (relativo a part5_offset). Ejemplo: 0x260FBF4</div>
+  </div>
+</div>
+
+<h3>3.3 — Tabla de metadatos (108 bytes por entrada)</h3>
+<div class="callout callout-blue">
+  <p><strong>Posición:</strong> La tabla de metadatos se ubica a <code>table_start</code> bytes <em>desde el inicio de PART5</em> (relativo, no absoluto).
+  El parser la detecta buscando el ancla <code>POWERON0_(0,0).BMP</code>.<br><br>
+  <strong>Nota importante:</strong> En HIFIEC20 V3.2.0, <code>table_start = 0x15BD5F8</code>, lo que coloca la tabla al 50% de PART5.
+  Los datos de imágenes están <em>después</em> de la tabla en este firmware.</p>
+</div>
+<div class="struct-box">
+  <div class="struct-title">struct metadata_entry — 108 bytes por entrada</div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+0</div><div class="s-cell s-sz">20 B</div>
+    <div class="s-cell s-name">unknown_header</div>
+    <div class="s-cell s-note">Campos de formato/flags desconocidos (varía por entrada)</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+20</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">image_offset</div>
+    <div class="s-cell s-note">Offset absoluto de los datos de píxeles en el archivo</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+24</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">width</div>
+    <div class="s-cell s-note">Ancho de la imagen en píxeles</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+28</div><div class="s-cell s-sz">4 B</div>
+    <div class="s-cell s-name">height</div>
+    <div class="s-cell s-note">Alto de la imagen en píxeles</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+32</div><div class="s-cell s-sz">64 B</div>
+    <div class="s-cell s-name">name</div>
+    <div class="s-cell s-note">Nombre del recurso null-terminated, e.g. <code>POWERON0_(0,0).BMP</code>, <code>CHARGELEVEL1_(0,0).BMP</code></div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+96</div><div class="s-cell s-sz">12 B</div>
+    <div class="s-cell s-name">trailing</div>
+    <div class="s-cell s-note">Campos finales no identificados</div>
+  </div>
+</div>
+
+<h3>3.4 — Convención de nombres de recursos</h3>
+<table>
+  <tr><th>Patrón</th><th>Tipo</th><th>Frames por tema</th><th>Descripción</th></tr>
+  <tr><td class="td-val">POWERON{n}_(0,0).BMP</td><td>Boot</td><td>40</td><td>Animación de encendido (boot splash)</td></tr>
+  <tr><td class="td-val">CHARGELEVEL{n}_(0,0).BMP</td><td>Carga</td><td>6</td><td>Iconos de nivel de carga (charging)</td></tr>
+  <tr><td class="td-val">POWEROFF0_(0,0).BMP</td><td>Apagado</td><td>1</td><td>Pantalla de apagado (shutdown)</td></tr>
+  <tr><td class="td-val">UI_*.BMP</td><td>Interfaz</td><td>~310</td><td>Elementos de la UI del reproductor</td></tr>
+</table>
+
+<div class="callout callout-green">
+  <p><strong>📐 Cálculo de bloques por tema:</strong><br>
+  HIFIEC20 original: 1602 entradas / ?temas · HIFIEC20 sin patchear: 1604 entradas / 4 temas A-D (+ SHARED=67 comunes).<br>
+  <strong>Bloque estándar = 374 imágenes</strong> (40 POWERON + 6 CHARGELEVEL + 1 POWEROFF + ~327 UI).<br>
+  Entradas totales = SHARED (67) + N_themes × 374 · Ejemplo: 5 temas → 67 + 5×374 = 1937... pero en V3.2.0 hay 1870 = 5×374.<br>
+  El campo SHARED se unificó en el tema A para la versión personalizada.</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 4 -->
+<div class="section">
+<h2>§4 — Struct de Settings en RAM (0x0301D140)</h2>
+
+<p style="margin-bottom:10px;">El puntero <code>0x0301D140</code> está hardcodeado como literal en el pool de la función dispatch.
+Apunta al struct de configuración activa en RAM donde el firmware almacena el tema actual.</p>
+
+<div class="struct-box">
+  <div class="struct-title">settings_struct — base: 0x0301D140 (RAM, RW)</div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+0x000</div><div class="s-cell s-sz">~?</div>
+    <div class="s-cell s-name">...</div>
+    <div class="s-cell s-note">Campos de configuración (volumen, EQ, etc.) — no reverse-engineered</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+0x34F</div><div class="s-cell s-sz">1 B</div>
+    <div class="s-cell s-name"><strong>theme_index</strong></div>
+    <div class="s-cell s-note">Índice del tema activo (0=A, 1=B, 2=C, 3=D, 4=E, 5=F). Leído por LDRB.W en el dispatch.</div>
+  </div>
+  <div class="struct-row s3">
+    <div class="s-cell s-off">+0x350</div><div class="s-cell s-sz">~?</div>
+    <div class="s-cell s-name">...</div>
+    <div class="s-cell s-note">Resto del struct — no reverse-engineered</div>
+  </div>
+</div>
+
+<div class="callout callout-blue">
+  <p><strong>Cómo se accede en ARM:</strong>
+  <code>LDR R2, [PC, #0x3C0]</code> → carga <code>0x0301D140</code> desde el pool literal (PC-relative).<br>
+  <code>LDRB.W R2, [R2, #0x34F]</code> → lee el byte en <code>0x0301D140 + 0x34F = 0x0301D48F</code> → ese byte es el <code>theme_index</code>.</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 5 -->
+<div class="section">
+<h2>§5 — Dispatch de temas ARM Thumb2 (file 0x3DF5A)</h2>
+
+<h3>5.1 — Disassembly completo (firmware original, sin parchear)</h3>
+
+<div class="disasm">
+  <div class="d-lbl">; Función de resolución de índice de recurso gráfico</div>
+  <div class="d-lbl">; Entrada: R0 = índice de recurso base (dentro del tema A)</div>
+  <div class="d-lbl">; Salida:  R0 = índice de recurso ajustado para el tema activo</div>
+  <div class="d-sep"></div>
+
+  <div class="disasm-row d-orig">
+    <div class="d-off">0x3DF5A</div>
+    <div class="d-hex">43 28</div>
+    <div class="d-asm">CMP    R0, #0x43</div>
+    <div class="d-cmt">; ¿R0 ≥ 67? (umbral de recursos SHARED vs por-tema)</div>
+  </div>
+  <div class="disasm-row d-orig">
+    <div class="d-off">0x3DF5C</div>
+    <div class="d-hex">18 D3</div>
+    <div class="d-asm">BCC.N  0x3DF90</div>
+    <div class="d-cmt">; Si R0 &lt; 67 → recurso compartido, no ajustar</div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="disasm-row">
+    <div class="d-off">0x3DF5E</div>
+    <div class="d-hex">F0 4A</div>
+    <div class="d-asm">LDR    R2, [PC, #0x3C0]</div>
+    <div class="d-cmt">; → pool @0x3E320 → carga 0x0301D140 (ptr settings struct)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF60</div>
+    <div class="d-hex">92 F8 4F 23</div>
+    <div class="d-asm">LDRB.W R2, [R2, #0x34F]</div>
+    <div class="d-cmt">; R2 = *(0x0301D48F) = theme_index (0=A … 4=E / 5=F)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF64</div>
+    <div class="d-hex">A2 B1</div>
+    <div class="d-asm">CBZ    R2, 0x3DF90</div>
+    <div class="d-cmt">; Si tema A (index=0) → sin ajuste (ya en bloque 0)</div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="d-lbl">; ─── Tema B (hardware index = 1, bloque = 307 entradas original)</div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF66</div>
+    <div class="d-hex">01 2A</div>
+    <div class="d-asm">CMP    R2, #1</div>
+    <div class="d-cmt">; ¿es tema B?</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF68</div>
+    <div class="d-hex">08 BF</div>
+    <div class="d-asm">IT     EQ</div>
+    <div class="d-cmt">; condicional — ejecutar ADDW solo si EQ</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF6A</div>
+    <div class="d-hex">00 F2 33 10</div>
+    <div class="d-asm">ADDWEQ R0, R0, #307</div>
+    <div class="d-cmt">; R0 += 307 → salta al bloque B (entradas 307–613)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF6E</div>
+    <div class="d-hex">0E D0</div>
+    <div class="d-asm">BEQ.N  0x3DF90</div>
+    <div class="d-cmt">; Si aplicó → terminar</div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="d-lbl">; ─── Tema C (hardware index = 2, bloque = 2×307)</div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF70</div>
+    <div class="d-hex">02 2A</div>
+    <div class="d-asm">CMP    R2, #2</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF72</div>
+    <div class="d-hex">08 BF</div>
+    <div class="d-asm">IT     EQ</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF74</div>
+    <div class="d-hex">00 F2 66 20</div>
+    <div class="d-asm">ADDWEQ R0, R0, #614</div>
+    <div class="d-cmt">; R0 += 614 → bloque C (entradas 614–920)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF78</div>
+    <div class="d-hex">09 D0</div>
+    <div class="d-asm">BEQ.N  0x3DF90</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="d-lbl">; ─── Tema E (hardware index = 4, 3er bloque en dispatch original)</div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF7A</div>
+    <div class="d-hex">04 2A</div>
+    <div class="d-asm">CMP    R2, #4</div>
+    <div class="d-cmt">; ¡Nota: E (hw=4) es comprobado ANTES que D (hw=3)!</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF7C</div>
+    <div class="d-hex">08 BF</div>
+    <div class="d-asm">IT     EQ</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF7E</div>
+    <div class="d-hex">00 F2 99 30</div>
+    <div class="d-asm">ADDWEQ R0, R0, #921</div>
+    <div class="d-cmt">; R0 += 921 → bloque E (entradas 921–1227)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF82</div>
+    <div class="d-hex">04 D0</div>
+    <div class="d-asm">BEQ.N  0x3DF90</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="d-lbl">; ─── Tema D (hardware index = 3, 4to bloque en dispatch original)</div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF84</div>
+    <div class="d-hex">03 2A</div>
+    <div class="d-asm">CMP    R2, #3</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF86</div>
+    <div class="d-hex">08 BF</div>
+    <div class="d-asm">IT     EQ</div>
+    <div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF88</div>
+    <div class="d-hex">00 F2 CC 40</div>
+    <div class="d-asm">ADDWEQ R0, R0, #1228</div>
+    <div class="d-cmt">; R0 += 1228 → bloque D (entradas 1228–1534)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF8C</div>
+    <div class="d-hex">00 D1</div>
+    <div class="d-asm">BNE.N  +4</div>
+    <div class="d-cmt">; Si ningún tema coincidió → fallthrough a UXTH de todos modos</div>
+  </div>
+  <div class="d-sep"></div>
+
+  <div class="d-lbl">; ─── Salida</div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF8E</div>
+    <div class="d-hex">80 B2</div>
+    <div class="d-asm">UXTH   R0, R0</div>
+    <div class="d-cmt">; Zero-extend a 16 bits (clamp a 0–65535)</div>
+  </div>
+  <div class="disasm-row">
+    <div class="d-off">0x3DF90</div>
+    <div class="d-hex">E4 4A</div>
+    <div class="d-asm">LDR    R2, [PC, #0x390]</div>
+    <div class="d-cmt">; continúa función...</div>
+  </div>
+</div>
+
+<h3>5.2 — Mapa de bloques (firmware original, OLD_BLK = 307)</h3>
+<table>
+  <tr><th>Tema</th><th>HW Index</th><th>ADDW offset</th><th>Rango entradas</th><th>Orden en dispatch</th></tr>
+  <tr><td>A</td><td>0</td><td>+0 (CBZ skip)</td><td>0 – 306</td><td>1° (CBZ)</td></tr>
+  <tr><td>B</td><td>1</td><td>+307</td><td>307 – 613</td><td>2°</td></tr>
+  <tr><td>C</td><td>2</td><td>+614</td><td>614 – 920</td><td>3°</td></tr>
+  <tr><td class="td-warn">E</td><td class="td-warn">4</td><td>+921</td><td>921 – 1227</td><td class="td-warn">4° (hw=4 antes que hw=3)</td></tr>
+  <tr><td>D</td><td>3</td><td>+1228</td><td>1228 – 1534</td><td>5°</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 6 -->
+<div class="section">
+<h2>§6 — Estrategia de Patching</h2>
+
+<h3>6.1 — Patch para 5 temas (A-E) — solo ADDW + CMP</h3>
+<p style="margin-bottom:10px;">Con NEW_BLK = 374 (40 POWERON + 6 CHARGELEVEL + 1 POWEROFF + 327 UI), los 4 slots existentes bastan para temas B,C,D,E. No se necesita code cave.</p>
+
+<div class="compare">
+  <div class="cmp-box">
+    <div class="cmp-title cmp-orig">✗ ORIGINAL — OLD_BLK=307</div>
+    <div class="cmp-body">
+      <div class="disasm-row"><div class="d-hex">43 28</div><div class="d-asm">CMP R0, #0x43</div><div class="d-cmt">; umbral=67</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 33 10</div><div class="d-asm">ADDW #307</div><div class="d-cmt">; B</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 66 20</div><div class="d-asm">ADDW #614</div><div class="d-cmt">; C</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 99 30</div><div class="d-asm">ADDW #921</div><div class="d-cmt">; E (hw=4)</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 CC 40</div><div class="d-asm">ADDW #1228</div><div class="d-cmt">; D (hw=3)</div></div>
+    </div>
+  </div>
+  <div class="cmp-box">
+    <div class="cmp-title cmp-patch">✓ PATCHED 5 temas — NEW_BLK=374</div>
+    <div class="cmp-body">
+      <div class="disasm-row"><div class="d-hex">00 28</div><div class="d-asm">CMP R0, #0x00</div><div class="d-cmt">; umbral=0 (todos)</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 76 10</div><div class="d-asm">ADDW #374</div><div class="d-cmt">; B = 1×374</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 EC 20</div><div class="d-asm">ADDW #748</div><div class="d-cmt">; C = 2×374</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 D8 50</div><div class="d-asm">ADDW #1496</div><div class="d-cmt">; E = 4×374 (hw=4)</div></div>
+      <div class="disasm-row"><div class="d-hex">00 F2 62 40</div><div class="d-asm">ADDW #1122</div><div class="d-cmt">; D = 3×374 (hw=3)</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="callout callout-yellow">
+  <p><strong>Por qué E (hw=4) tiene ADDW=4×374=1496 pero D (hw=3) tiene ADDW=3×374=1122:</strong><br>
+  El tema_index no es el número de bloque, es el índice de hardware del tema. Cada tema mapea a su bloque como <code>ADDW = hw_index × NEW_BLK</code>.
+  En el firmware original el orden de los CMP era E antes que D (herencia del diseño original), y al parchear se conserva ese mismo orden pero con las fórmulas correctas.</p>
+</div>
+
+<h3>6.2 — Patch para 6 temas (A-F) — B.W + Code Cave</h3>
+<p style="margin-bottom:10px;">El quinto tema no-default (F, hw_index=5) no tiene slot en el dispatch de 4 entradas. Se inyecta un <strong>B.W</strong> (Branch.Wide, 4 bytes) que salta a una cave en ceros a 0x13D90.</p>
+
+<div class="compare">
+  <div class="cmp-box">
+    <div class="cmp-title cmp-orig">✗ ANTES — 4 bytes a reemplazar</div>
+    <div class="cmp-body">
+      <div class="disasm-row"><div class="d-off">0x3DF5A</div><div class="d-hex">XX 28</div><div class="d-asm">CMP R0, #imm</div></div>
+      <div class="disasm-row"><div class="d-off">0x3DF5C</div><div class="d-hex">18 D3</div><div class="d-asm">BCC.N +0x38</div></div>
+      <div style="height:6px"></div>
+      <p style="color:#8b949e;font-size:11px">Los 4 bytes del CMP+BCC son exactamente el tamaño de un B.W</p>
+    </div>
+  </div>
+  <div class="cmp-box">
+    <div class="cmp-title cmp-patch">✓ DESPUÉS — B.W al code cave</div>
+    <div class="cmp-body">
+      <div class="disasm-row"><div class="d-off">0x3DF5A</div><div class="d-hex">D5 F7 19 BF</div><div class="d-asm">B.W 0xFF813D90</div></div>
+      <div style="height:6px"></div>
+      <p style="color:#8b949e;font-size:11px">B.W codifica offset relativo al PC+4 = 0x3DF5E.<br>Target virtual = 0xFF813D90 → offset = cave_virt − 0xFF813D5E</p>
+    </div>
+  </div>
+</div>
+
+<h3>6.3 — Code Cave (file 0x13D90, virt 0xFF813D90) — 72 bytes</h3>
+<div class="callout callout-green">
+  <p><strong>El code cave replica todo el dispatch original más un 5° slot para tema F:</strong><br>
+  CMP+BCC → LDR pool → LDRB.W [settings+0x34F] → CBZ(A) → bloque B → bloque C → bloque D → bloque E → bloque F → UXTH → B.W back</p>
+</div>
+<div class="disasm">
+  <div class="d-lbl">; Code Cave @ file 0x13D90  (virtual 0xFF813D90)</div>
+  <div class="d-lbl">; Pool literal está al final de la cave (offset +68)</div>
+  <div class="d-sep"></div>
+
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+0</div><div class="d-hex">?? 28</div>
+    <div class="d-asm">CMP R0, #0</div>
+    <div class="d-cmt">; umbral = 0 para 6 temas</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+2</div><div class="d-hex">xx D3</div>
+    <div class="d-asm">BCC.N  cave+end</div>
+    <div class="d-cmt">; R0 &lt; umbral → skip (never para umbral=0)</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+4</div><div class="d-hex">?? 4A</div>
+    <div class="d-asm">LDR R2, [PC, #pool_off]</div>
+    <div class="d-cmt">; carga 0x0301D140 desde pool al final de cave</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+6</div><div class="d-hex">92 F8 4F 23</div>
+    <div class="d-asm">LDRB.W R2, [R2, #0x34F]</div>
+    <div class="d-cmt">; R2 = theme_index</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+10</div><div class="d-hex">?? B1</div>
+    <div class="d-asm">CBZ R2, cave_end</div>
+    <div class="d-cmt">; tema A → sin ajuste</div>
+  </div>
+  <div class="d-sep"></div>
+  <div class="d-lbl">; 5 bloques ADDW (B=374, C=748, D=1122, E=1496, F=1870)</div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+12</div><div class="d-hex">01 2A</div>
+    <div class="d-asm">CMP R2, #1</div><div class="d-cmt">; B?</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+14</div><div class="d-hex">08 BF</div>
+    <div class="d-asm">IT EQ</div><div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+16</div><div class="d-hex">00 F2 76 10</div>
+    <div class="d-asm">ADDWEQ R0,R0,#374</div><div class="d-cmt">; bloque B</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+20</div><div class="d-hex">?? D0</div>
+    <div class="d-asm">BEQ.N cave_end</div><div class="d-cmt"></div>
+  </div>
+  <div class="d-lbl" style="margin-left:20px">... (bloques C, D, E idénticos al patch 5-temas) ...</div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+44</div><div class="d-hex">05 2A</div>
+    <div class="d-asm">CMP R2, #5</div><div class="d-cmt">; F? (5° tema no-default)</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+46</div><div class="d-hex">08 BF</div>
+    <div class="d-asm">IT EQ</div><div class="d-cmt"></div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+48</div><div class="d-hex">00 F2 4A 50</div>
+    <div class="d-asm">ADDWEQ R0,R0,#1870</div><div class="d-cmt">; 5×374 = bloque F</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+52</div><div class="d-hex">00 D1</div>
+    <div class="d-asm">BNE.N +4</div><div class="d-cmt">; si ninguno coincide, caer</div>
+  </div>
+  <div class="d-sep"></div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+54</div><div class="d-hex">80 B2</div>
+    <div class="d-asm">UXTH R0, R0</div><div class="d-cmt">; zero-extend</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+56</div><div class="d-hex">?? F? ?? B?</div>
+    <div class="d-asm">B.W  0x3DF5E+4</div><div class="d-cmt">; retorno al código original (post-dispatch)</div>
+  </div>
+  <div class="disasm-row d-cave">
+    <div class="d-off">cave+64</div><div class="d-hex">40 D1 01 03</div>
+    <div class="d-asm">.word 0x0301D140</div><div class="d-cmt">; pool literal: settings struct ptr</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 7 -->
+<div class="section">
+<h2>§7 — Referencia de Codificación ARM Thumb2</h2>
+<p style="margin-bottom:10px;">Instrucciones clave usadas en el proyecto, con sus patrones de bits y ejemplos concretos.</p>
+
+<div class="enc-box">
+  <div class="enc-title">CMP Rn, #imm8 — Thumb 16-bit (T1)</div>
+  <div class="enc-row">
+    <span class="enc-mnem">Formato:</span>
+    <span class="enc-bits">[ 0010 1 Rn(3) | imm8(8) ]</span>
+    <span class="enc-note">Siempre 2 bytes, Rn=000 para R0</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">CMP R0,#0x43:</span>
+    <span class="enc-bits">0x43 0x28</span>
+    <span class="enc-ex">→ imm8=0x43, byte 2=0x28 (0010 1 000)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">CMP R0,#0x00:</span>
+    <span class="enc-bits">0x00 0x28</span>
+    <span class="enc-ex">→ imm8=0x00</span>
+  </div>
+</div>
+
+<div class="enc-box">
+  <div class="enc-title">ADDW Rd, Rn, #imm12 — Thumb2 32-bit (T4) — formato "modified immediate"</div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW1:</span>
+    <span class="enc-bits">[ 1111 0 i 1 0 0000 Rn(4) ]</span>
+    <span class="enc-note">Para ADDW siempre: 0xF200 (i=0, op=0b0000, Rn=R0=0000)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW2:</span>
+    <span class="enc-bits">[ 0 imm3(3) Rd(4) | imm8(8) ]</span>
+    <span class="enc-note">imm12 = i:imm3:imm8 — Rd=R0=0000</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">ADDW #374:</span>
+    <span class="enc-bits">F2 00 | 76 10</span>
+    <span class="enc-ex">→ HW2=0x1076: imm3=001, Rd=0000, imm8=0x76; i=0 → imm12=0x176=374 ✓</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">ADDW #748:</span>
+    <span class="enc-bits">F2 00 | EC 20</span>
+    <span class="enc-ex">→ HW2=0x20EC: imm3=010, imm8=0xEC → 0x2EC=748 ✓</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">ADDW #1122:</span>
+    <span class="enc-bits">F2 00 | 62 40</span>
+    <span class="enc-ex">→ HW2=0x4062: imm3=100, imm8=0x62 → 0x462=1122 ✓</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">ADDW #1496:</span>
+    <span class="enc-bits">F2 00 | D8 50</span>
+    <span class="enc-ex">→ HW2=0x50D8: imm3=101, imm8=0xD8 → 0x5D8=1496 ✓</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">ADDW #1870:</span>
+    <span class="enc-bits">F2 00 | 4A 50</span>
+    <span class="enc-ex">→ HW2=0x504A: imm3=101, imm8=0x4A → 0x54A=1354? — usa fórmula completa</span>
+  </div>
+</div>
+
+<div class="enc-box">
+  <div class="enc-title">B.W (Branch Wide) — Thumb2 32-bit — el más complejo</div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW1:</span>
+    <span class="enc-bits">[ 1111 0 S | imm10(10) ]</span>
+    <span class="enc-note">S = signo del offset</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW2:</span>
+    <span class="enc-bits">[ 1 J1 1 J2 | imm11(11) ]</span>
+    <span class="enc-note">J1 = NOT(I1 XOR S); J2 = NOT(I2 XOR S)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">Offset:</span>
+    <span class="enc-bits">SignExtend( S:I1:I2:imm10:imm11:'0' )</span>
+    <span class="enc-note">offset es relativo a PC+4 (instrucción siguiente)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">Ejemplo:</span>
+    <span class="enc-bits">D5 F7 19 BF</span>
+    <span class="enc-ex">→ HW1=0xF7D5, HW2=0xBF19 → salta de 0x3DF5E a 0xFF813D90 (cave)</span>
+  </div>
+</div>
+
+<div class="enc-box">
+  <div class="enc-title">LDRB.W Rt, [Rn, #imm12] — Thumb2 32-bit (T2 unsigned offset)</div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW1:</span>
+    <span class="enc-bits">[ 1111 1000 1001 Rn(4) ]</span>
+    <span class="enc-note">= 0xF892 para Rn=R2</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">HW2:</span>
+    <span class="enc-bits">[ Rt(4) | imm12(12) ]</span>
+    <span class="enc-note">= 0x234F para Rt=R2, imm12=0x34F</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">Bytes:</span>
+    <span class="enc-bits">92 F8 4F 23</span>
+    <span class="enc-ex">→ LDRB.W R2, [R2, #0x34F] — lee theme_index desde settings struct</span>
+  </div>
+</div>
+
+<div class="enc-box">
+  <div class="enc-title">LDR Rt, [PC, #imm8×4] — Thumb 16-bit PC-relative (T1)</div>
+  <div class="enc-row">
+    <span class="enc-mnem">Formato:</span>
+    <span class="enc-bits">[ 0100 1 Rt(3) | imm8(8) ]</span>
+    <span class="enc-note">PC es alignado a 4 bytes (PC+4 & ~3)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">Ejemplo:</span>
+    <span class="enc-bits">F0 4A</span>
+    <span class="enc-ex">→ Rt=R2(010), imm8=0xF0 → pool = (0x3DF60 &amp; ~3) + 0xF0×4 = 0x3DF60 + 0x3C0 = 0x3E320</span>
+  </div>
+</div>
+
+<div class="enc-box">
+  <div class="enc-title">CBZ Rn, label — Thumb 16-bit (T1, forward only)</div>
+  <div class="enc-row">
+    <span class="enc-mnem">Formato:</span>
+    <span class="enc-bits">[ 1011 0 i 1 imm5(5) Rn(3) ]</span>
+    <span class="enc-note">offset = i:imm5:0 (7-bit, siempre positivo)</span>
+  </div>
+  <div class="enc-row">
+    <span class="enc-mnem">Bytes:</span>
+    <span class="enc-bits">A2 B1</span>
+    <span class="enc-ex">→ 0xB1A2 = 1011 0001 1010 0010 → i=0, imm5=10100, Rn=R2 → offset=+0x28</span>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SECCIÓN 8 -->
+<div class="section">
+<h2>§8 — Boot/Charge/Shutdown por tema (estructura)</h2>
+
+<div class="callout callout-blue">
+  <p><strong>Cada tema tiene su propio conjunto de animaciones de boot, carga y apagado.</strong><br>
+  Estas se identifican por nombre: <code>POWERON{n}</code>, <code>CHARGELEVEL{n}</code>, <code>POWEROFF0</code> donde el nombre refleja el orden dentro del bloque del tema.<br>
+  El <strong>patch de boots por tema</strong> modifica la tabla de metadatos para que cada tema apunte a sus propias frames en lugar de compartir las del tema A.</p>
+</div>
+
+<table>
+  <tr><th>Tipo</th><th>Frames</th><th>Nombres (ejemplo tema B)</th><th>Índices en bloque (relativo)</th></tr>
+  <tr>
+    <td>Boot / Power ON</td><td>40</td>
+    <td class="td-val">POWERON0_(0,0).BMP … POWERON39_(0,0).BMP</td>
+    <td>0 – 39</td>
+  </tr>
+  <tr>
+    <td>Charging levels</td><td>6</td>
+    <td class="td-val">CHARGELEVEL0_(0,0).BMP … CHARGELEVEL5_(0,0).BMP</td>
+    <td>40 – 45</td>
+  </tr>
+  <tr>
+    <td>Power OFF</td><td>1</td>
+    <td class="td-val">POWEROFF0_(0,0).BMP</td>
+    <td>46</td>
+  </tr>
+  <tr>
+    <td>UI elements</td><td>~327</td>
+    <td class="td-val">UI_*.BMP, PLAY*.BMP, etc.</td>
+    <td>47 – 373</td>
+  </tr>
+</table>
+
+<p style="margin-top:12px; color:#8b949e; font-size:12px;">Total por tema: <strong>374 entradas</strong> · 5 temas (A-E): 1870 entradas totales · 6 temas (A-F): 2244 entradas totales</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ FOOTER -->
+<div style="margin-top:50px; border-top:1px solid #21262d; padding-top:14px; color:#484f58; font-size:11px;">
+  Echo Mini Customizer — Reverse Engineering Documentation<br>
+  Plataforma: Rockchip RKNano · ISA: ARM Thumb2 · Firmware: HIFIEC20/HIFIEC21 V3.2.0<br>
+  Generado por sesión de ingeniería inversa — EchoMiniCustomizer Project
+</div>
+
+</body>
+</html>
