@@ -2173,7 +2173,7 @@ def strip_theme_prefix(name, prefix):
 class EchoMiniCustomizer(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Echo Mini Customizer v1.5 - Firmware Theme Editor")
+        self.setWindowTitle("Echo Mini Customizer v1.6 - Firmware Theme Editor")
         self.setMinimumSize(950, 750)
         self.firmware = None
         self.resources_by_name = {}
@@ -3057,11 +3057,11 @@ class EchoMiniCustomizer(QMainWindow):
             if not is_shared and not is_themed and not is_themed_boot:
                 continue
 
-            safe_name = rname.replace('.BMP', '').replace('/', '_').replace('\\', '_')
+            safe_name = rname.strip().replace('.BMP', '').strip().replace('/', '_').replace('\\', '_')
             fname = f"{res['index']:04d}_{safe_name}.png"
             pixmap = QPixmap.fromImage(img)
 
-            # Shared or themed boot resources → Boot/
+
             if is_shared or is_themed_boot:
                 dest_folder = "Boot"
                 pixmap.save(str(boot_dir / fname), "PNG")
@@ -3156,7 +3156,7 @@ class EchoMiniCustomizer(QMainWindow):
                 break
 
             rname = res['name']
-            safe_name = rname.replace('.BMP', '').replace('/', '_').replace('\\', '_')
+            safe_name = rname.strip().replace('.BMP', '').strip().replace('/', '_').replace('\\', '_')
             fname = f"{res['index']:04d}_{safe_name}.png"
             pixmap = QPixmap.fromImage(img)
 
@@ -3388,6 +3388,10 @@ class EchoMiniCustomizer(QMainWindow):
                         stripped = res_name_part[len(src_pfx):]
                         remapped = (target_prefix + stripped) if target_prefix else stripped
                         match = name_to_res.get(remapped.upper())
+                        # Fallback: some resources use concatenated prefix (CSTYLE not C_STYLE)
+                        if match is None and target_prefix and target_prefix.endswith('_'):
+                            alt_remapped = target_prefix[:-1] + stripped
+                            match = name_to_res.get(alt_remapped.upper())
                         if match:
                             break
 
