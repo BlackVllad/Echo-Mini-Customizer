@@ -75,14 +75,22 @@ class FirmwareParser:
 
         # Find metadata table via anchor
         anchor = struct.unpack('<I', part5[rock26_start + 12:rock26_start + 16])[0]
+        # Byte search: table isn't always 4-byte aligned.
         first_match = None
-        for pos in range(0, len(part5) - self.METADATA_ENTRY_SIZE, 4):
-            eoff = struct.unpack('<I', part5[pos + 20:pos + 24])[0]
-            if eoff == anchor:
-                nm = part5[pos + 32:pos + 96].split(b'\x00')[0].decode('ascii', errors='ignore')
-                if nm.endswith('.BMP') and len(nm) >= 5:
-                    first_match = pos
-                    break
+        needle = struct.pack('<I', anchor)
+        search_pos = 0
+        while True:
+            hit = part5.find(needle, search_pos)
+            if hit == -1:
+                break
+            search_pos = hit + 1
+            pos = hit - 20
+            if pos < 0 or pos + self.METADATA_ENTRY_SIZE > len(part5):
+                continue
+            nm = part5[pos + 32:pos + 96].split(b'\x00')[0].decode('ascii', errors='ignore')
+            if nm.endswith('.BMP') and len(nm) >= 5:
+                first_match = pos
+                break
 
         if first_match is None:
             raise ValueError("Metadata table not found")
