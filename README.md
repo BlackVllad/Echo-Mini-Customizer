@@ -79,7 +79,8 @@ The patch is auto-detected and works across firmware versions:
 | Firmware | Version | OLD_BLK | NEW_BLK | ADDW encoding |
 |----------|---------|---------|---------|----------------|
 | HIFIEC320.IMG / HIFIEC33.IMG | V3.2.0 / V3.3.0 | 307 | 374 | ADDW T4 |
-| **HIFIEC34.IMG** | **V3.4.0** | **310** | **377** | ADD.W T3 + T4 mixed |
+| HIFIEC34.IMG | V3.4.0 | 310 | 377 | ADD.W T3 + T4 mixed |
+| **HIFIEC36.IMG / HIFIEC39.IMG** | **V3.6.0 / V3.9.0** | **310** | **377** | ADD.W T3 + T4 mixed |
 
 ## Firmware Structure
 
