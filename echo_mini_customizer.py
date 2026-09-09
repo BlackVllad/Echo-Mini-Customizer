@@ -75,14 +75,23 @@ class FirmwareParser:
 
         # Find metadata table via anchor
         anchor = struct.unpack('<I', part5[rock26_start + 12:rock26_start + 16])[0]
+        anchor_bytes = struct.pack('<I', anchor)
         first_match = None
-        for pos in range(0, len(part5) - self.METADATA_ENTRY_SIZE, 4):
-            eoff = struct.unpack('<I', part5[pos + 20:pos + 24])[0]
-            if eoff == anchor:
+        
+        search_pos = 0
+        while True:
+            idx = part5.find(anchor_bytes, search_pos)
+            if idx == -1:
+                break
+                
+            pos = idx - 20
+            if 0 <= pos <= len(part5) - self.METADATA_ENTRY_SIZE:
                 nm = part5[pos + 32:pos + 96].split(b'\x00')[0].decode('ascii', errors='ignore')
                 if nm.endswith('.BMP') and len(nm) >= 5:
                     first_match = pos
                     break
+                    
+            search_pos = idx + 1
 
         if first_match is None:
             raise ValueError("Metadata table not found")
@@ -191,8 +200,8 @@ class FirmwareParser:
         eng_idx = 2 if nr_lang > 2 else 0
         section_abs = strtbl_off + lang_offsets[eng_idx]
         HEADER_SIZE = 0x3A  # bytes from entry header to name text
-        # V3.x firmware uses 0x0154; V2.0 firmware uses 0x0156
-        VALID_THEME_PARENT_IDS = {0x0154, 0x0156}
+        # V2.0 firmware uses 0x0154; V3.2–V3.6 use 0x0156; V3.9+ use 0x0157
+        VALID_THEME_PARENT_IDS = {0x0154, 0x0156, 0x0157}
         for ti in range(20):
             name_addr = section_abs + self.STRTBL_THEME_NAME_OFFSET + ti * self.STRTBL_THEME_ENTRY_SIZE
             hdr_addr = name_addr - HEADER_SIZE
@@ -310,8 +319,9 @@ class FirmwareParser:
 
     def _allocate_part5_space(self, size):
         """Allocate new space at the end of Part5, returns offset within Part5."""
-        new_offset = self.part5_size
-        self.part5_size += size
+        # Align to 4-byte boundary for hardware DMA compatibility
+        new_offset = (self.part5_size + 3) & ~3
+        self.part5_size = new_offset + size
         struct.pack_into('<I', self.img_data, 0x150, self.part5_size)
         needed = self.part5_offset + self.part5_size
         if needed > len(self.img_data):
@@ -1277,7 +1287,7 @@ class FirmwareParser:
         new_zone_start = table_abs + old_count * self.METADATA_ENTRY_SIZE
         new_zone_end   = table_abs + new_count * self.METADATA_ENTRY_SIZE
         if new_zone_end > new_zone_start:
-            append_abs = self.part5_offset + self.part5_size
+            append_abs = ((self.part5_offset + self.part5_size) + 3) & ~3
             for i in range(new_count):
                 r26_entry = bytearray(new_r26[i])
                 w      = struct.unpack_from('<H', r26_entry, 0)[0]
@@ -1299,7 +1309,7 @@ class FirmwareParser:
                     meta_entry = bytearray(new_meta[i])
                     struct.pack_into('<I', meta_entry, 20, new_off_p5)
                     new_meta[i] = bytes(meta_entry)
-                    append_abs += img_size
+                    append_abs = (append_abs + img_size + 3) & ~3
             self.part5_size = max(append_abs - self.part5_offset, self.part5_size)
 
         # ── 2. Write expanded ROCK26 table ──
@@ -2892,7 +2902,7 @@ class EchoMiniCustomizer(QMainWindow):
             _, cur_img = cur_entry
             if res['name'] not in self._undo_stack:
                 self._undo_stack[res['name']] = []
-            raw_copy = bytes(self.firmware.img_data[res['offset']:res['offset']+res['size']])
+            raw_copy = bytes(self.firmware.img_data[self.firmware.part5_offset + res['offset']:self.firmware.part5_offset + res['offset']+res.get('raw_size', res['width']*res['height']*2)])
             self._undo_stack[res['name']].append((raw_copy, cur_img.copy()))
             if len(self._undo_stack[res['name']]) > 5:
                 self._undo_stack[res['name']].pop(0)
@@ -2933,7 +2943,7 @@ class EchoMiniCustomizer(QMainWindow):
         if res is None:
             return
         # Restore raw bytes in firmware
-        off = res['offset']
+        off = self.firmware.part5_offset + res['offset']
         self.firmware.img_data[off:off + len(raw_bytes)] = bytearray(raw_bytes)
         # Update cache
         self.resources_by_name[res_name] = (res, prev_qimg)
